@@ -2,7 +2,7 @@
 name: explain-flow
 description: Explains the control flow behind what this conversation is working on (an issue, a bug, a change) as linked UML diagrams in tabs (component, sequence, and state or activity when they help) plus domain-language prose whose paragraphs highlight the matching diagram elements. Use when the user asks to explain, walk through, trace or visualize how a request, call or feature flows through the code.
 argument-hint: "[focus, e.g. 'why the door code is issued twice']"
-allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), mcp__explain-flow__render_flow_explanation, mcp__explain-flow__trace_seed
+allowed-tools: Read, Grep, Glob, Skill, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), mcp__dcerecedo-skills__render_flow_explanation, mcp__dcerecedo-skills__trace_seed
 ---
 
 The reader is in the middle of work on a specific issue and wants the slice of the system that matters to it, explained well enough that they could predict what the code does next. They are not asking for a tour of the architecture. What you produce is rendered in a terminal pane and in an offline browser page, where each paragraph of prose lights up the diagram elements it talks about, and every code reference is a link the reader will click. So the explanation has to be correct before it is complete.

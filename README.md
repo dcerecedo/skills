@@ -1,71 +1,37 @@
-# explain-flow
+# dcerecedo-skills
 
-A Claude Code skill and mod in one folder. Ask Claude to explain the flow you are working on and it traces the code, then renders:
-
-- a terminal pane with the explanation's paragraphs, the diagram elements each one covers, and editor links to the code;
-- an offline HTML page with the UML diagrams in tabs (component, sequence, and state or activity when they help), the prose always visible beside them, and two-way highlighting between paragraphs and diagram elements.
+My Claude Code skills, packaged as one plugin. Skills are namespaced `/dcerecedo-skills:<skill>`.
 
 ## Install
 
-Copy this folder to `~/.claude/skills/explain-flow/`. Claude Code loads `SKILL.md` as a personal skill and the folder's plugin (`.claude-plugin/`, `hooks/`) as a mod on the next session start.
+At the Claude Code prompt:
 
-Requirements: `git`; `python3` for Python repositories (standard library only); `xdg-open` or another opener for the browser page.
-
-## Use
-
-- `/explain-flow [focus]`, or just ask "explain how the rebooking flow issues door codes".
-- `/flow-view` reopens the pane; `/flow-view list` lists saved explanations; `/flow-view <slug>` reopens one and rebuilds its page.
-- Pane keys (once the pane has focus): `1`–`9` tabs, `j` / `k` next and previous paragraph, `o` open the browser page at the current tab and paragraph.
-- Browser page: click a paragraph or use `j` / `k`; click a diagram element to jump to the paragraphs that explain it (click again to cycle); double-click an element to open its code; `1`–`9` tabs, `+` / `-` / `0` zoom, `l` legend, `t` theme, Esc clears.
-
-Explanations are saved as `<slug>.json` and `<slug>.html` under `.claude/explanations/` in the repo (add it to `.gitignore` if you don't want them committed).
-
-## Configure
-
-Plugin settings (in `/config`):
-
-| Setting | Default | |
-| --- | --- | --- |
-| `editorUrl` | `vscode://file/{abs}:{line}` | `{abs}`, `{path}`, `{line}` placeholders. Cursor: `cursor://file/{abs}:{line}` |
-| `outputDir` | `.claude/explanations` | relative to the repo root |
-| `openBrowser` | `true` | open the page after every render |
-| `browserCommand` | `xdg-open` | macOS: `open` |
-| `python` | `python3` | e.g. `.venv/bin/python` |
-
-A repo can override any of them in `.claude/explain-flow.json`, and add resolvers for other languages:
-
-```json
-{
-  "outputDir": "docs/flows",
-  "resolvers": [
-    { "name": "ruby", "extensions": [".rb"], "command": ["ruby", "/path/to/resolve.rb"] }
-  ]
-}
+```
+/plugin install dcerecedo-skills --marketplace dcerecedo/skills
 ```
 
-A resolver speaks the JSON protocol in `resolvers/PROTOCOL.md`. Files no resolver claims get the stack-agnostic text check.
+Answer `y` to add the marketplace, then pick the user scope to have it in every project. From a shell: `claude plugin install dcerecedo-skills --marketplace dcerecedo/skills`. Update with `claude plugin update dcerecedo-skills`, then `/reload-plugins`.
 
-Issues are read through the issue-tracker skill or CLI the project already has (TWG, for example), as its own instructions say; the mod has no tracker configuration.
+## Skills
 
-## What is checked
+| Skill | What it does |
+| --- | --- |
+| [`explain-flow`](explain-flow/README.md) | Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a terminal pane and an offline browser view. |
 
-The render tool refuses an explanation until every id, highlight and code reference holds:
+## Develop
 
-- structure: unique ids, edges and messages between known nodes and participants, highlights that exist in their diagram, a component and a sequence diagram, at most 25 messages per sequence diagram;
-- references: the file exists and holds the line; for a definition, the symbol is defined there; for a call, the callee is reached from that call site.
-
-The Python resolver uses `ast` and follows the Django hops a plain call graph misses (URL routing, signal receivers, Celery `.delay`). A call it proves is drawn solid; a call it can only place by name (dynamic dispatch) is drawn dotted with a `?` and its tooltip says why. Without a resolver, calls are never marked verified.
+```bash
+claude plugin validate .
+claude plugin test .
+claude --plugin-dir .    # load this working copy for one session; edits hot-reload
+```
 
 ## Layout
 
 ```
-SKILL.md                     the prompt
-.claude-plugin/plugin.json   manifest and settings
-hooks/                       the mod: tools, /flow-view, pane, validation, page builder
-types/index.d.ts             the explanation model and the mod's state
-viewer/                      the page template and vendored ELK (EPL-2.0)
-resolvers/                   protocol and the Python/Django resolver
-tests/                       plugin tests and a small Django fixture
+.claude-plugin/plugin.json       manifest: name, skills, settings
+.claude-plugin/marketplace.json  makes this repo the `dcerecedo` marketplace
+skills/<skill>/SKILL.md          one folder per skill
+hooks/hooks.json                 the plugin's hooks modules, one per skill that has a mod
+<skill>/                         a skill's mod code, assets and tests
 ```
-
-Tests: `claude plugin test .` and `python3 -m unittest discover -s resolvers/python`.

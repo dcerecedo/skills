@@ -1,11 +1,15 @@
 {
-  "name": "explain-flow",
+  "name": "dcerecedo-skills",
   "version": "0.1.0",
-  "description": "Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view.",
+  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view.",
   "author": {
     "name": "Dani"
   },
-  "types": "./types/index.d.ts",
+  "repository": "https://github.com/dcerecedo/skills",
+  "skills": [
+    "./skills/explain-flow"
+  ],
+  "types": "./explain-flow/types/index.d.ts",
   "userConfig": {
     "editorUrl": {
       "type": "string",

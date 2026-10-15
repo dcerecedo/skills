@@ -130,6 +130,6 @@ export type Selection = { block: string | null; tab: string | null }
 
 declare module 'claude-code' {
   interface PluginState {
-    'explain-flow': { current: Rendered | null; selection: Selection }
+    'dcerecedo-skills': { current: Rendered | null; selection: Selection }
   }
 }

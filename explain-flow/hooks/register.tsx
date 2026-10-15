@@ -12,8 +12,8 @@ const RENDER_TOOL = 'render_flow_explanation'
 const SEED_TOOL = 'trace_seed'
 const VIEW_COMMAND = 'flow-view'
 
-const current = atom({ plugin: 'explain-flow', key: 'current' } as const, null as Rendered | null)
-const selection = atom({ plugin: 'explain-flow', key: 'selection' } as const, { block: null, tab: null } as Selection)
+const current = atom({ plugin: 'dcerecedo-skills', key: 'current' } as const, null as Rendered | null)
+const selection = atom({ plugin: 'dcerecedo-skills', key: 'selection' } as const, { block: null, tab: null } as Selection)
 
 const RENDER_DESCRIPTION = `Validate and render a control-flow explanation (see the explain-flow skill for how to build one).
 Input: { "explanation": <Explanation> }. The tool checks every id, every highlight and every code reference against the repository (a language resolver for Python/Django, a text check otherwise). On problems it returns errors: fix them by re-reading the code, never by deleting the reference, and call it again. On success it writes the explanation as JSON and as an offline HTML view, opens the terminal pane, and returns where it wrote them.
@@ -125,8 +125,8 @@ async function publish(
   const jsonPath = `${dir}/${slug}.json`
   const htmlPath = `${dir}/${slug}.html`
   const [template, elk] = await Promise.all([
-    $.fs.read(`${$.plugin.root}/viewer/template.html`) as Promise<string>,
-    $.fs.read(`${$.plugin.root}/viewer/vendor/elk.bundled.js`) as Promise<string>,
+    $.fs.read(`${$.plugin.root}/explain-flow/viewer/template.html`) as Promise<string>,
+    $.fs.read(`${$.plugin.root}/explain-flow/viewer/vendor/elk.bundled.js`) as Promise<string>,
   ])
   const html = buildHtml(template, elk, {
     explanation,
@@ -216,7 +216,7 @@ export const register: Register = (on, options) => {
   })
 
   // ---- the render tool
-  on('tool.call', { tool: 'mcp__explain-flow__render_flow_explanation' }, async ($, e) => {
+  on('tool.call', { tool: 'mcp__dcerecedo-skills__render_flow_explanation' }, async ($, e) => {
     const input = e as unknown as { explanation?: unknown }
     let x = input.explanation as Explanation | string | undefined
     if (typeof x === 'string') {
@@ -248,7 +248,7 @@ export const register: Register = (on, options) => {
   }).catch(() => ({ deny: 'explain-flow could not render the explanation (an internal error; run claude --debug for details). The model was not saved.' }))
 
   // ---- the seed tool
-  on('tool.call', { tool: 'mcp__explain-flow__trace_seed' }, async ($, e) => {
+  on('tool.call', { tool: 'mcp__dcerecedo-skills__trace_seed' }, async ($, e) => {
     const input = e as unknown as { entry?: string; depth?: number }
     const p = input.entry ? parseRef(input.entry) : null
     if (!p) return { deny: 'entry must be a path:line reference' }

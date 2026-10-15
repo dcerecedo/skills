@@ -1,0 +1,14 @@
+{
+  "name": "dcerecedo",
+  "owner": {
+    "name": "Dani"
+  },
+  "description": "dcerecedo's Claude Code skills, as an installable plugin.",
+  "plugins": [
+    {
+      "name": "dcerecedo-skills",
+      "source": "./",
+      "description": "dcerecedo's Claude Code skills (explain-flow)."
+    }
+  ]
+}

@@ -30,7 +30,7 @@ export const BUILTIN_RESOLVERS: ResolverSpec[] = [
   {
     name: 'python',
     extensions: ['.py'],
-    command: ['{python}', '-I', '{pluginRoot}/resolvers/python/resolve.py'],
+    command: ['{python}', '-I', '{pluginRoot}/explain-flow/resolvers/python/resolve.py'],
   },
 ]
 

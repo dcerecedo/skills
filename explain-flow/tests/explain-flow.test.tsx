@@ -183,7 +183,7 @@ describe('viewer', () => {
 
 // ------------------------------------------------------------------ the tool and the pane, end to end
 
-const PANE = { plugin: 'explain-flow', component: 'Pane', requestId: 'explain-flow' } as const
+const PANE = { plugin: 'dcerecedo-skills', component: 'Pane', requestId: 'explain-flow' } as const
 const paneProps = { title: 'Flow', isFocused: true, bodyColumns: 80, placement: 'dock' } as never
 
 /**
@@ -220,14 +220,14 @@ describe('render tool and pane', () => {
     const host = fakeHost(on)
     const x = clone()
     x.blocks[1]!.highlights.seq = ['s9']
-    const r = await $.tool.call({ tool: 'mcp__explain-flow__render_flow_explanation', explanation: x } as never)
+    const r = await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: x } as never)
     expect(String((r as { deny?: string }).deny ?? (r as { text?: string }).text)).toContain('"s9" is not an element of seq')
     expect(Object.keys(host.written)).toEqual([])
   })
 
   test('the tool writes the model and the page, then the pane follows block selection on terminal and desktop', async ($, on) => {
     const host = fakeHost(on)
-    const r = await $.tool.call({ tool: 'mcp__explain-flow__render_flow_explanation', explanation: clone() } as never)
+    const r = await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
     const text = JSON.stringify(r)
     expect(text).toContain('Rendered')
     expect(Object.keys(host.written).sort()).toEqual([
