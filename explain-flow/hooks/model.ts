@@ -15,8 +15,15 @@ import type {
 
 export type ParsedRef = { path: string; line: number; end: number }
 
-/** What a reference is expected to point at. */
-export type Role = 'def' | 'call' | 'any'
+/**
+ * What a reference is expected to point at: the definition of `code`, a call
+ * site reaching `code`, a line inside the body of `code` (where a step of an
+ * activity or a state transition happens), or just an existing line.
+ */
+export type Role = 'def' | 'call' | 'within' | 'any'
+
+/** A dotted name: `issue_code`, `LockService.issue_code`, `Foo#bar`, `a::b`. */
+const CODE_RE = /^[A-Za-z_$][\w$]*(?:(?:\.|#|::?)[A-Za-z_$][\w$]*)*$/
 
 export type RefCheck = {
   /** Where in the model it sits, for error messages: `seq/s3`, `block b2`. */
@@ -37,6 +44,8 @@ export type Issues = { errors: string[]; warnings: string[] }
 export const MAX_STEPS = 25
 export const SOFT_MAX_STEPS = 15
 export const MAX_BLOCKS = 12
+/** How far above a `within` ref the text check looks for the function's name. */
+export const WITHIN_REACH = 200
 
 const REF_RE = /^(?<path>[^:\s][^:]*?):(?<line>\d+)(?:-(?<end>\d+))?$/
 const INLINE_REF_RE = /\[\[ref:([^\]]+)\]\]/g
@@ -52,6 +61,21 @@ export function parseRef(ref: string): ParsedRef | null {
 
 export function inlineRefs(text: string): string[] {
   return [...text.matchAll(INLINE_REF_RE)].map(m => m[1]!.trim())
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** Local `YYYY-MM-DD HH:MM`. */
+export function formatStamp(at: Date): string {
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`
+}
+
+/**
+ * The saved files' name without extension: `2026-10-15-0930-<slug>`, so a
+ * folder listing sorts by time and every render keeps its own files.
+ */
+export function fileStem(topic: string, at: Date): string {
+  return `${formatStamp(at).replace(' ', '-').replace(':', '')}-${slugify(topic)}`
 }
 
 export function slugify(topic: string): string {
@@ -247,14 +271,26 @@ export function collectRefChecks(x: Explanation): { checks: RefCheck[]; errors: 
     }
     checks.push({ where, ref, ...p, role, ...extra })
   }
+  const badCode = (where: string, code: string | undefined) => {
+    if (code !== undefined && !CODE_RE.test(code.trim()))
+      errors.push(
+        `${where}: code "${code}" must name a function, method or class (e.g. LockService.issue_code); put expressions in the label, and for a module name a function in it or leave code out`,
+      )
+    return code !== undefined && !CODE_RE.test(code.trim())
+  }
   add('scope.entry', x.scope.entry, 'any')
   for (const d of x.diagrams) {
     if (isSequence(d)) {
-      for (const p of d.participants) add(`${d.id}/${p.id}`, p.ref, 'def', { code: p.code })
+      for (const p of d.participants) {
+        const where = `${d.id}/${p.id}`
+        if (!badCode(where, p.code)) add(where, p.ref, 'def', { code: p.code })
+      }
       walkSteps(d.steps, s => {
         if (isMessage(s)) {
+          const where = `${d.id}/${s.id}`
+          if (badCode(where, s.code)) return
           const role: Role = s.type === 'return' ? 'any' : 'call'
-          add(`${d.id}/${s.id}`, s.ref, role, {
+          add(where, s.ref, role, {
             code: s.code,
             via: s.via,
             target: role === 'call' ? { diagram: d.id, element: s.id } : undefined,
@@ -264,13 +300,23 @@ export function collectRefChecks(x: Explanation): { checks: RefCheck[]; errors: 
         }
       })
     } else {
-      for (const n of d.nodes) add(`${d.id}/${n.id}`, n.ref, 'def', { code: n.code })
-      for (const e of d.edges)
-        add(`${d.id}/${e.id}`, e.ref, e.code ? 'call' : 'any', {
+      // in a component diagram a node is a thing defined in code and an edge a
+      // call; in a state or activity diagram both mark where something happens
+      const happens = d.kind === 'state' || d.kind === 'activity'
+      for (const n of d.nodes) {
+        const where = `${d.id}/${n.id}`
+        if (!badCode(where, n.code)) add(where, n.ref, n.code ? (happens ? 'within' : 'def') : 'any', { code: n.code })
+      }
+      for (const e of d.edges) {
+        const where = `${d.id}/${e.id}`
+        if (badCode(where, e.code)) continue
+        const role: Role = !e.code ? 'any' : happens ? 'within' : 'call'
+        add(where, e.ref, role, {
           code: e.code,
           via: e.via,
-          target: e.code ? { diagram: d.id, element: e.id } : undefined,
+          target: role === 'call' ? { diagram: d.id, element: e.id } : undefined,
         })
+      }
     }
   }
   for (const b of x.blocks) for (const r of inlineRefs(b.text)) add(`block ${b.id}`, r, 'any')
@@ -302,6 +348,20 @@ export function textCheck(check: RefCheck, fileText: string | null): CheckOutcom
   if (!check.code || check.role === 'any') return { status: 'ok' }
   const name = lastSegment(check.code)
   const word = new RegExp(`(^|[^A-Za-z0-9_$])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z0-9_$]|$)`)
+  if (check.role === 'within') {
+    // without a parser the body's extent is unknown: accept the name at or
+    // above the line, within a function's reach
+    for (let i = check.line - 1; i >= Math.max(0, check.line - WITHIN_REACH); i--)
+      if (word.test(lines[i]!)) return { status: 'ok' }
+    const at = lines.findIndex(l => word.test(l))
+    return {
+      status: 'error',
+      reason:
+        at >= 0
+          ? `line ${check.line} is not inside "${name}" (it appears at line ${at + 1})`
+          : `"${name}" does not appear in ${check.path}`,
+    }
+  }
   const from = Math.max(0, check.line - 4)
   const to = Math.min(lines.length, check.end + 3)
   for (let i = from; i < to; i++) {

@@ -20,8 +20,10 @@ Command: `<command> verify`
 ```
 
 `role` is `def` (the ref should point at the definition of `code`), `call`
-(the ref is a call site that should reach `code`) or `any` (the line just has
-to exist). `via` is a hint about how the call travels: `call`, `url`,
+(the ref is a call site that should reach `code`), `within` (the ref is a line
+inside the body of `code`, where an activity step or a state transition
+happens) or `any` (the line just has to exist). A resolver that does not know
+a role answers `ok` for it. `via` is a hint about how the call travels: `call`, `url`,
 `signal`, `task`, `orm`, `http`, `event` or `other`.
 
 Answer:
@@ -30,7 +32,7 @@ Answer:
 { "results": { "7": { "status": "verified", "reason": "direct call at line 57" } } }
 ```
 
-`status` is one of `ok` (def or any: found), `verified` (call: statically
+`status` is one of `ok` (def, within or any: found), `verified` (call: statically
 resolved), `unverified` (call: the name is there but the resolver cannot prove
 the hop, e.g. dynamic dispatch) or `error` (the reference is wrong; `reason`
 says what is actually there so the model can fix it).

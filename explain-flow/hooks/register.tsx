@@ -3,9 +3,9 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Explanation, Rendered, Selection } from '../types'
 import { editorLink, PROJECT_CONFIG, resolveConfig, resolverFor, type Config, type ResolverSpec } from './config'
-import { inlineRefs, isSequence, parseRef, slugify, walkSteps } from './model'
+import { fileStem, formatStamp, inlineRefs, isSequence, parseRef, walkSteps } from './model'
 import { formatIssues, runPipeline, type PipelineIO, type ResolverAnswer } from './pipeline'
-import { buildHtml } from './viewer'
+import { buildHtml, pageMeta, readPageMeta, type PageMeta } from './viewer'
 
 const PANE = 'explain-flow'
 const RENDER_TOOL = 'render_flow_explanation'
@@ -105,6 +105,54 @@ async function openInBrowser($: EngineInterface, config: Config, rendered: Rende
   }
 }
 
+const fileUrl = (path: string) => `file://${encodeURI(path)}`
+
+type Saved = { stem: string; htmlPath: string; jsonPath: string | null; meta: PageMeta; mtimeMs: number }
+
+/**
+ * The explanations in the output folder, newest first, read from what is
+ * there now: a page without its model can be opened in the browser, not in
+ * the pane. Titles come from the model, or from the page's <head>.
+ */
+async function listSaved($: EngineInterface, dir: string): Promise<Saved[]> {
+  let entries: { name: string; kind: string; mtimeMs: number }[]
+  try {
+    entries = await $.fs.list(dir)
+  } catch {
+    return []
+  }
+  const names = new Set(entries.map(e => e.name))
+  const pages = entries.filter(e => e.kind === 'file' && e.name.endsWith('.html')).sort((a, b) => b.mtimeMs - a.mtimeMs)
+  const out: Saved[] = []
+  for (const page of pages) {
+    const stem = page.name.replace(/\.html$/, '')
+    const htmlPath = `${dir}/${page.name}`
+    const jsonPath = names.has(`${stem}.json`) ? `${dir}/${stem}.json` : null
+    let meta: PageMeta | null = null
+    if (jsonPath) {
+      try {
+        const x = JSON.parse((await readText($, jsonPath)) ?? '') as Explanation
+        meta = pageMeta(x, '', '')
+      } catch {
+        meta = null
+      }
+    }
+    if (!meta) meta = readPageMeta((await readText($, htmlPath)) ?? '')
+    out.push({ stem, htmlPath, jsonPath, mtimeMs: page.mtimeMs, meta: meta ?? { title: stem, description: '' } })
+  }
+  return out
+}
+
+function formatList(dir: string, saved: Saved[]): string {
+  if (!saved.length) return `No saved explanations in ${dir}.`
+  const lines = saved.map((s, i) => {
+    const head = [`**${s.meta.title}**`, s.meta.issue, formatStamp(new Date(s.mtimeMs))].filter(Boolean).join(' · ')
+    const page = `[page](${fileUrl(s.htmlPath)})${s.jsonPath ? '' : ' (page only)'}`
+    return `${i + 1}. ${head}\n   ${s.meta.description ? `${s.meta.description} ` : ''}${page}`
+  })
+  return `Explanations in ${dir}, newest first:\n\n${lines.join('\n')}\n\nReopen one in the pane with /${VIEW_COMMAND} <number> or /${VIEW_COMMAND} <name>.`
+}
+
 async function openExternal($: EngineInterface, config: Config, url: string) {
   const argv = [...config.browserCommand.split(/\s+/).filter(Boolean), url]
   try {
@@ -119,8 +167,10 @@ async function publish(
   config: Config,
   root: string,
   explanation: Explanation,
+  stem?: string,
 ): Promise<Rendered> {
-  const slug = slugify(explanation.topic)
+  // a reopened explanation keeps its name; a new render gets its own
+  const slug = stem ?? fileStem(explanation.topic, new Date())
   const dir = absPath(root, config.outputDir)
   const jsonPath = `${dir}/${slug}.json`
   const htmlPath = `${dir}/${slug}.html`
@@ -210,7 +260,7 @@ export const register: Register = (on, options) => {
     })
     await $.command.register({
       name: 'flow-view',
-      description: 'Show the last control-flow explanation in a pane; "/flow-view <slug>" reopens a saved one, "/flow-view list" lists them',
+      description: 'Show the last control-flow explanation in a pane; "/flow-view list" lists the saved ones with titles, "/flow-view <number or name>" reopens one',
     })
     return started
   })
@@ -237,10 +287,15 @@ export const register: Register = (on, options) => {
     if (config.openBrowser) void openInBrowser($, config, rendered)
 
     const s = result.stats
+    const entry = parseRef(result.explanation.scope.entry)
+    const example = entry
+      ? `[${entry.path.split('/').pop()}:${entry.line}](${editorLink(config.editorUrl, root, entry.path, entry.line)})`
+      : ''
     const summary = [
       `Rendered "${result.explanation.topic}".`,
-      `Browser view: ${rendered.htmlPath}`,
+      `Page: [${result.explanation.topic}](${fileUrl(rendered.htmlPath)})`,
       `Model: ${rendered.jsonPath}`,
+      `In your reply, link the page as above and every code reference as [file:line](${config.editorUrl}) with {abs} the absolute path, {path} the repo-relative path and {line} the line${example ? `, e.g. ${example}` : ''}.`,
       `References checked: ${s.refs} (${s.resolvers.join(', ')}); interactions verified: ${s.verified}, not verifiable statically: ${s.unverified}.`,
     ]
     const warnings = formatIssues({ warnings: result.warnings })
@@ -275,26 +330,23 @@ export const register: Register = (on, options) => {
     const root = await repoRootOf($)
     const config = await loadConfig($, opts, root)
     const dir = absPath(root, config.outputDir)
-    if (arg === 'list') {
-      let names: string[] = []
-      try {
-        names = (await $.fs.list(dir)).filter(f => f.name.endsWith('.json')).map(f => f.name.replace(/\.json$/, ''))
-      } catch {
-        // no folder yet
-      }
-      return { text: names.length ? `Saved explanations in ${config.outputDir}:\n${names.map(n => `- ${n}`).join('\n')}` : `No saved explanations in ${config.outputDir}.` }
-    }
+    if (arg === 'list') return { text: formatList(dir, await listSaved($, dir)) }
     if (arg) {
-      const raw = await readText($, `${dir}/${arg.replace(/\.json$/, '')}.json`)
-      if (!raw) return { text: `No explanation named "${arg}" in ${config.outputDir}. Try /${VIEW_COMMAND} list.` }
+      const saved = await listSaved($, dir)
+      const pick = /^\d+$/.test(arg) ? saved[Number(arg) - 1] : saved.find(x => x.stem === arg.replace(/\.(json|html)$/, ''))
+      if (!pick) return { text: `No explanation "${arg}" in ${dir}.\n\n${formatList(dir, saved)}` }
+      if (!pick.jsonPath) {
+        await openExternal($, config, fileUrl(pick.htmlPath))
+        return { text: `${pick.meta.title}: its model is gone, so it opens in the browser only: [page](${fileUrl(pick.htmlPath)})` }
+      }
       let x: Explanation
       try {
-        x = JSON.parse(raw) as Explanation
+        x = JSON.parse((await readText($, pick.jsonPath)) ?? '') as Explanation
       } catch {
-        return { text: `${arg}.json is not valid JSON.` }
+        return { text: `${pick.jsonPath} is not valid JSON.` }
       }
       // a saved model was validated when written; republish rebuilds its HTML with this version's viewer
-      await publish($, config, root, x)
+      await publish($, config, root, x, pick.stem)
     }
     if (!(await read($, current))) return { text: 'Nothing rendered yet in this session. Ask for an explanation of the current flow, or /flow-view list.' }
     await $.ui.open({ id: PANE, title: 'Flow', focus: true })

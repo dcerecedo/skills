@@ -56,6 +56,16 @@ class Verify(unittest.TestCase):
         [r] = verify({"path": "bookings/services.py", "line": 1, "role": "call", "code": "LockService"})
         self.assertEqual(r["status"], "unverified")
 
+    def test_within_accepts_a_line_in_the_body(self):
+        [r] = verify({"path": "bookings/services.py", "line": 9, "role": "within", "code": "rebook"})
+        self.assertEqual(r["status"], "ok")
+
+    def test_within_outside_the_body_says_where_the_line_is(self):
+        [r] = verify({"path": "locks/service.py", "line": 12, "role": "within", "code": "rebook"})
+        self.assertEqual(r["status"], "error")
+        self.assertIn("inside issue_code", r["reason"])
+        self.assertIn("bookings/services.py:6", r["reason"])
+
     def test_missing_file_and_line(self):
         a, b = verify({"path": "nope.py", "line": 1, "role": "any"},
                       {"path": "bookings/services.py", "line": 400, "role": "any"})

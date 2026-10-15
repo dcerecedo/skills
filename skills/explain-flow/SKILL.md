@@ -39,6 +39,18 @@ Always produce a component diagram and a sequence diagram. Add a state diagram w
 
 Component diagram: nodes are logical components (a Django app can be a parent node grouping its services, views, tasks), each with a `kind` such as service, view, model, task, signal, store or external. Edges carry what flows, with `code` naming the callee and `ref` the call site when there is one.
 
+State and activity diagrams: a node or edge with `code` and `ref` marks where something happens, so `code` names the function and `ref` a line inside its body (the line where the state changes or the step runs), not its `def`.
+
+What `code` and `ref` mean on each element, which the render tool checks:
+
+| Element | `code` | `ref` |
+| --- | --- | --- |
+| component node, sequence participant | the function, method or class it stands for | where `code` is defined |
+| component edge, sequence message | the callee | the call site |
+| activity node, state or activity edge | the function the step or transition happens in | a line inside that function |
+
+`code` is always a dotted name (`LockService.issue_code`), never an expression or a module path: put expressions in the label, and for a module name a function in it or leave `code` out. An element with `ref` and no `code` only needs the line to exist.
+
 Sequence diagram: participants map to component nodes through `component`. Use `sync` for direct calls, `async` for tasks, signals and events, `return` only where the returned value matters to the story, and fragments (`alt`, `opt`, `loop`) where a condition decides whether the issue happens. Give every non-return message a `ref` to its call site, a `code` for its callee, and a `via` when the hop is not a plain call (`url`, `signal`, `task`, `orm`, `http`, `event`), so the resolver can check it. A hop the resolver cannot prove statically is still worth showing; it is drawn as not verified.
 
 ## Prose
@@ -47,4 +59,4 @@ Write 3 to 8 blocks in execution order, each covering one beat of the story, wit
 
 ## Render
 
-Call `render_flow_explanation` with `{ "explanation": ... }` (the shape is in the tool description). When it returns errors, fix them by re-reading the code and correcting the reference, the id or the step, never by deleting the reference, and call it again. When it succeeds, reply with two or three sentences: the answer to the question in domain terms, and where the issue's behaviour is decided. The pane and the browser page carry the rest, so don't restate the prose.
+Call `render_flow_explanation` with `{ "explanation": ... }` (the shape is in the tool description). When it returns errors, fix them by re-reading the code and correcting the reference, the id or the step, never by deleting the reference, and call it again. When it succeeds, reply with two or three sentences: the answer to the question in domain terms, and where the issue's behaviour is decided. The pane and the browser page carry the rest, so don't restate the prose. Write the page and every code reference in the reply as the markdown links the tool result shows (`[check_pin_statuses.py:48](vscode://file/…:48)`), never as bare paths: the reader clicks them.

@@ -12,11 +12,11 @@ Requirements: `git`; `python3` for Python repositories (standard library only); 
 ## Use
 
 - `/dcerecedo-skills:explain-flow [focus]`, or just ask "explain how the rebooking flow issues door codes".
-- `/flow-view` reopens the pane; `/flow-view list` lists saved explanations; `/flow-view <slug>` reopens one and rebuilds its page.
+- `/flow-view` reopens the pane; `/flow-view list` lists the saved explanations in the output folder, newest first, with title, issue, date, question and a link to the page; `/flow-view <number>` (from the list) or `/flow-view <name>` reopens one in the pane and rebuilds its page.
 - Pane keys (once the pane has focus): `1`–`9` tabs, `j` / `k` next and previous paragraph, `o` open the browser page at the current tab and paragraph.
 - Browser page: click a paragraph or use `j` / `k`; click a diagram element to jump to the paragraphs that explain it (click again to cycle); double-click an element to open its code; `1`–`9` tabs, `+` / `-` / `0` zoom, `l` legend, `t` theme, Esc clears.
 
-Explanations are saved as `<slug>.json` and `<slug>.html` under `explainFlowOutputDir`, `.claude/explanations/` in the repo by default (add it to `.gitignore` if you don't want them committed). To have them expire instead, set it to `/tmp/explain-flow/{repo}`.
+Each render is saved as `<YYYY-MM-DD-HHMM>-<topic>.json` (the model) and `.html` (the page, whose `<title>` and `<meta>` tags carry the topic, question, issue and repo) under `explainFlowOutputDir`, `.claude/explanations/` in the repo by default (add it to `.gitignore` if you don't want them committed). To have them expire instead, set it to `/tmp/explain-flow/{repo}`.
 
 ## Configure
 
@@ -55,7 +55,7 @@ Issues are read through the issue-tracker skill or CLI the project already has (
 The render tool refuses an explanation until every id, highlight and code reference holds:
 
 - structure: unique ids, edges and messages between known nodes and participants, highlights that exist in their diagram, a component and a sequence diagram, at most 25 messages per sequence diagram;
-- references: the file exists and holds the line; for a definition, the symbol is defined there; for a call, the callee is reached from that call site.
+- references: the file exists and holds the line; `code` is a dotted name. A component node or sequence participant must point at the definition of its `code`; a component edge or message at a call site that reaches it; an activity node or a state or activity edge at a line inside the body of its `code`.
 
 The Python resolver uses `ast` and follows the Django hops a plain call graph misses (URL routing, signal receivers, Celery `.delay`). A call it proves is drawn solid; a call it can only place by name (dynamic dispatch) is drawn dotted with a `?` and its tooltip says why. Without a resolver, calls are never marked verified.
 

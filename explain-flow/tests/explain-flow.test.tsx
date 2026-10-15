@@ -3,9 +3,9 @@ import { describe, expect, test } from 'claude-code/testing'
 
 import type { Explanation } from '../types'
 import { resolveConfig } from '../hooks/config'
-import { collectRefChecks, slugify, textCheck, validateStructure } from '../hooks/model'
+import { collectRefChecks, fileStem, slugify, textCheck, validateStructure } from '../hooks/model'
 import { runPipeline, type PipelineIO } from '../hooks/pipeline'
-import { buildHtml } from '../hooks/viewer'
+import { buildHtml, readPageMeta } from '../hooks/viewer'
 
 const MODEL: Explanation = {
   version: 1,
@@ -161,6 +161,56 @@ describe('references', () => {
   })
 })
 
+describe('reference roles', () => {
+  const withGraphs = (): Explanation => {
+    const x = clone()
+    x.diagrams.push(
+      {
+        id: 'act',
+        title: 'Steps',
+        kind: 'activity',
+        nodes: [{ id: 'a1', label: 'save the booking', code: 'rebook', ref: 'bookings/services.py:10' }],
+        edges: [],
+      },
+      {
+        id: 'st',
+        title: 'Status',
+        kind: 'state',
+        nodes: [{ id: 'n1', label: 'rebooked' }, { id: 'n2', label: 'active' }],
+        edges: [{ id: 't1', from: 'n2', to: 'n1', label: 'rebook', code: 'rebook', ref: 'bookings/services.py:9', type: 'transition' }],
+      },
+    )
+    return x
+  }
+
+  test('nodes and edges of state and activity diagrams point inside a function, component ones at definitions and calls', () => {
+    const { checks, errors } = collectRefChecks(withGraphs())
+    expect(errors).toEqual([])
+    const role = (where: string) => checks.find(c => c.where === where)?.role
+    expect(role('act/a1')).toBe('within')
+    expect(role('st/t1')).toBe('within')
+    expect(role('components/c.service')).toBe('def')
+    expect(checks.filter(c => c.where.startsWith('components/') && c.code && !c.where.startsWith('components/c.')).every(c => c.role === 'call')).toBe(true)
+  })
+
+  test('a code that is an expression or has a subscript is rejected with what to do instead', () => {
+    const x = withGraphs()
+    const act = x.diagrams.find(d => d.id === 'act') as { nodes: { code?: string }[] }
+    act.nodes[0]!.code = 'results[key.pin_status]'
+    const { checks, errors } = collectRefChecks(x)
+    expect(errors.join('\n')).toContain('act/a1: code "results[key.pin_status]" must name a function, method or class')
+    expect(checks.some(c => c.where === 'act/a1')).toBe(false)
+  })
+
+  test('the text check accepts a within ref below the function name and rejects one above it', () => {
+    const file = FILES['bookings/services.py']!
+    const at = (line: number) =>
+      textCheck({ where: 'act/a1', ref: `bookings/services.py:${line}`, path: 'bookings/services.py', line, end: line, role: 'within', code: 'rebook' }, file)
+    expect(at(10).status).toBe('ok')
+    expect(at(2).status).toBe('error')
+  })
+})
+
 describe('config', () => {
   test('the project section beats shared keys, which beat plugin options', () => {
     const c = resolveConfig(
@@ -202,6 +252,28 @@ describe('viewer', () => {
     expect(html.includes('var elk="<\\/script>"')).toBe(true)
   })
 
+  test('the page carries its title, description and issue in its head, readable back', async () => {
+    const x = clone()
+    x.question = 'Why is the "door code" sent twice & when?'
+    const html = buildHtml('<head><title>__TITLE__</title>\n__META__</head><script>__MODEL_JSON__</script>', '', {
+      explanation: x,
+      repoRoot: '/home/me/shop',
+      editorUrl: 'vscode://file/{abs}:{line}',
+      generatedAt: '2026-10-15T09:30:00Z',
+    })
+    expect(readPageMeta(html)).toEqual({
+      title: x.topic,
+      description: 'Why is the "door code" sent twice & when?',
+      issue: 'LOCK-412',
+      repo: 'shop',
+      generated: '2026-10-15T09:30:00Z',
+    })
+  })
+
+  test('saved files are named by local time then topic, so a listing sorts by time', async () => {
+    expect(fileStem('Código emitido / LOCK-412', new Date(2026, 9, 5, 9, 7))).toBe('2026-10-05-0907-codigo-emitido-lock-412')
+  })
+
   test('slugs are filesystem-safe', async () => {
     expect(slugify('Código emitido dos veces / LOCK-412')).toBe('codigo-emitido-dos-veces-lock-412')
   })
@@ -222,15 +294,23 @@ function fakeHost(on: On) {
   on('session.cwd', async () => ({ value: '/repo' }))
   on('fs.read', async (_$, e) => {
     if (e.path.endsWith('/viewer/template.html'))
-      return { value: '<title>__TITLE__</title><script>__MODEL_JSON__</script><script>/*__ELK__*/</script>' }
+      return { value: '<head><title>__TITLE__</title>\n__META__</head><script>__MODEL_JSON__</script><script>/*__ELK__*/</script>' }
     if (e.path.endsWith('/viewer/vendor/elk.bundled.js')) return { value: 'var ELK = function () {}' }
+    if (e.path in written) return { value: written[e.path]! }
     const rel = e.path.replace(/^\/repo\//, '')
     if (rel in FILES) return { value: FILES[rel]! }
     return { deny: `ENOENT: ${e.path}` }
   })
+  const mtime: Record<string, number> = {}
   on('fs.write', async (_$, e) => {
     written[e.path] = e.text
+    mtime[e.path] = Object.keys(mtime).length + 1
     return { value: undefined }
+  })
+  on('fs.list', async (_$, e) => {
+    const inDir = Object.keys(written).filter(p => p.startsWith(`${e.path}/`))
+    if (!inDir.length) return { deny: `ENOENT: ${e.path}` }
+    return { value: inDir.map(p => ({ name: p.slice(e.path.length + 1), kind: 'file' as const, size: written[p]!.length, mtimeMs: mtime[p]! })) }
   })
   on('process.run', async (_$, e) => {
     ran.push([...e.argv])
@@ -240,6 +320,37 @@ function fakeHost(on: On) {
   on('ui.toast', async () => ({ value: undefined }))
   return { written, ran }
 }
+
+describe('saved explanations', () => {
+  test('list reads titles and descriptions from the folder, newest first, and a number reopens one', async ($, on) => {
+    const host = fakeHost(on)
+    const older = clone()
+    older.topic = 'Older flow'
+    older.question = 'What happened before?'
+    await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: older } as never)
+    await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
+
+    const { text } = (await $.command.run({ command: 'flow-view', args: 'list' })) as { text: string }
+    expect(text.indexOf(clone().topic)).toBeLessThan(text.indexOf('Older flow'))
+    expect(text).toContain('LOCK-412')
+    expect(text).toContain('What happened before?')
+    expect(text).toContain('[page](file:///repo/.claude/explanations/')
+
+    const before = Object.keys(host.written).length
+    await $.command.run({ command: 'flow-view', args: '2' })
+    // reopening rebuilds the same files, never a new pair
+    expect(Object.keys(host.written).length).toBe(before)
+  })
+
+  test('a page whose model was deleted is listed from its head and marked page only', async ($, on) => {
+    const host = fakeHost(on)
+    await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
+    for (const p of Object.keys(host.written)) if (p.endsWith('.json')) delete host.written[p]
+    const { text } = (await $.command.run({ command: 'flow-view', args: 'list' })) as { text: string }
+    expect(text).toContain(`**${clone().topic}**`)
+    expect(text).toContain('(page only)')
+  })
+})
 
 describe('render tool and pane', () => {
   test('the tool rejects a broken model with the errors to fix', async ($, on) => {
@@ -256,10 +367,13 @@ describe('render tool and pane', () => {
     const r = await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
     const text = JSON.stringify(r)
     expect(text).toContain('Rendered')
-    expect(Object.keys(host.written).sort()).toEqual([
-      '/repo/.claude/explanations/access-code-issued-twice-when-a-guest-rebooks.html',
-      '/repo/.claude/explanations/access-code-issued-twice-when-a-guest-rebooks.json',
-    ])
+    const names = Object.keys(host.written).sort()
+    expect(names).toHaveLength(2)
+    expect(names[0]).toMatch(/^\/repo\/\.claude\/explanations\/\d{4}-\d{2}-\d{2}-\d{4}-access-code-issued-twice-when-a-guest-rebooks\.html$/)
+    expect(names[1]).toBe(names[0]!.replace(/\.html$/, '.json'))
+    // the reply can link the page and the code
+    expect(text).toContain(`(file://${names[0]})`)
+    expect(text).toContain('[views.py:9](vscode://file//repo/bookings/views.py:9)')
     // the browser was asked to open the page
     expect(host.ran.some(a => a[0] === 'xdg-open' && a[1]!.startsWith('file:///repo/.claude/explanations/'))).toBe(true)
 

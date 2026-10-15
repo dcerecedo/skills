@@ -267,6 +267,28 @@ def check_def(proj: Project, p: Parsed, c: dict) -> dict:
     return {"status": "error", "reason": f"no definition of {name} in the project"}
 
 
+def check_within(proj: Project, p: Parsed, c: dict) -> dict:
+    """The ref is a line inside the body of `code`: where a step happens."""
+    name = last_segment(c["code"])
+    line, end = c["line"], c.get("end", c["line"])
+    if not p.tree:
+        return text_fallback(p, c, name, p.error or "unparsable")
+    local = [n for n in ast.walk(p.tree)
+             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n.name == name]
+    for node in local:
+        if first_line(node) <= line and end <= getattr(node, "end_lineno", node.lineno):
+            return {"status": "ok", "reason": f"inside {name} (lines {node.lineno}-{node.end_lineno})"}
+    inner = enclosing_def(p, line)
+    inside = f"line {line} is inside {inner.name} (line {inner.lineno})" if inner else f"line {line} is not inside any function"
+    if local:
+        spans = ", ".join(f"{n.lineno}-{n.end_lineno}" for n in local)
+        return {"status": "error", "reason": f"{inside}, not {name}, which spans lines {spans} of {c['path']}"}
+    elsewhere = proj.defs_named(name)
+    if elsewhere:
+        return {"status": "error", "reason": f"{inside}; {name} is not defined in {c['path']} but at {where(elsewhere)}"}
+    return {"status": "error", "reason": f"{inside}; no definition of {name} in the project"}
+
+
 def check_call(proj: Project, p: Parsed, c: dict) -> dict:
     code = c.get("code")
     if not code:
@@ -353,6 +375,8 @@ def verify(req: dict) -> dict:
                 results[key] = check_def(proj, p, c)
             elif role == "call":
                 results[key] = check_call(proj, p, c)
+            elif role == "within" and c.get("code"):
+                results[key] = check_within(proj, p, c)
             else:
                 results[key] = {"status": "ok"}
         except Exception as exc:  # one bad check must not sink the batch
