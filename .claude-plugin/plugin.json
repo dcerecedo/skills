@@ -17,15 +17,15 @@
       "description": "Link opened for a code reference. Placeholders: {abs} absolute path, {path} repo-relative path, {line} line number.",
       "default": "vscode://file/{abs}:{line}"
     },
-    "outputDir": {
+    "explainFlowOutputDir": {
       "type": "string",
-      "title": "Output folder",
-      "description": "Where explanations (.json and .html) are written, relative to the repo root.",
+      "title": "explain-flow: Output folder",
+      "description": "Where explanations (.json and .html) are written: relative to the repo root, or absolute. {repo} is the repository folder's name, e.g. /tmp/explain-flow/{repo}.",
       "default": ".claude/explanations"
     },
-    "openBrowser": {
+    "explainFlowOpenBrowser": {
       "type": "boolean",
-      "title": "Open browser view automatically",
+      "title": "explain-flow: Open browser view automatically",
       "description": "Open the HTML view in the browser after each explanation is rendered.",
       "default": true
     },

@@ -56,7 +56,7 @@ const textOnly: PipelineIO = {
   readFile: async p => FILES[p] ?? null,
   runResolver: async () => null,
 }
-const config = resolveConfig({}, { resolvers: [] })
+const config = resolveConfig({}, null, '/repo')
 const noResolvers = { ...config, resolvers: [] }
 
 const clone = (): Explanation => JSON.parse(JSON.stringify(MODEL))
@@ -158,6 +158,32 @@ describe('references', () => {
     const { checks } = collectRefChecks(clone())
     const call = checks.find(c => c.role === 'call')!
     expect(textCheck({ ...call, code: 'issue' }, FILES['bookings/services.py']!).status).toBe('error')
+  })
+})
+
+describe('config', () => {
+  test('the project section beats shared keys, which beat plugin options', () => {
+    const c = resolveConfig(
+      { editorUrl: 'option://{abs}', python: 'option-python', explainFlowOpenBrowser: false },
+      { editorUrl: 'shared://{abs}', python: 'shared-python', 'explain-flow': { python: 'own-python' } },
+      '/repo',
+    )
+    expect(c.editorUrl).toBe('shared://{abs}')
+    expect(c.python).toBe('own-python')
+    expect(c.openBrowser).toBe(false)
+  })
+
+  test('{repo} in the output folder is the repository folder name', () => {
+    expect(resolveConfig({ explainFlowOutputDir: '/tmp/explain-flow/{repo}' }, null, '/home/me/shop/').outputDir).toBe('/tmp/explain-flow/shop')
+    expect(resolveConfig({}, { 'explain-flow': { outputDir: 'docs/{repo}' } }, '/w/api').outputDir).toBe('docs/api')
+  })
+
+  test('resolvers are read from the skill section only and replace built-ins by name', () => {
+    const ruby = { name: 'ruby', extensions: ['.rb'], command: ['ruby', 'r.rb'] }
+    const python = { name: 'python', extensions: ['.py'], command: ['my-py'] }
+    expect(resolveConfig({}, { resolvers: [ruby] }, '/r').resolvers.map(r => r.name)).toEqual(['python'])
+    const c = resolveConfig({}, { 'explain-flow': { resolvers: [ruby, python] } }, '/r')
+    expect(c.resolvers).toEqual([ruby, python])
   })
 })
 

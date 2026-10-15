@@ -56,7 +56,7 @@ async function loadConfig($: EngineInterface, options: Record<string, unknown>, 
       $.ui.toast(`explain-flow: ${PROJECT_CONFIG} is not valid JSON; using plugin settings`)
     }
   }
-  return resolveConfig(options, project)
+  return resolveConfig(options, project, root)
 }
 
 function resolverArgv($: EngineInterface, spec: ResolverSpec, config: Config, mode: string): string[] {

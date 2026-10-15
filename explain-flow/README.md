@@ -16,7 +16,7 @@ Requirements: `git`; `python3` for Python repositories (standard library only); 
 - Pane keys (once the pane has focus): `1`–`9` tabs, `j` / `k` next and previous paragraph, `o` open the browser page at the current tab and paragraph.
 - Browser page: click a paragraph or use `j` / `k`; click a diagram element to jump to the paragraphs that explain it (click again to cycle); double-click an element to open its code; `1`–`9` tabs, `+` / `-` / `0` zoom, `l` legend, `t` theme, Esc clears.
 
-Explanations are saved as `<slug>.json` and `<slug>.html` under `.claude/explanations/` in the repo (add it to `.gitignore` if you don't want them committed).
+Explanations are saved as `<slug>.json` and `<slug>.html` under `explainFlowOutputDir`, `.claude/explanations/` in the repo by default (add it to `.gitignore` if you don't want them committed). To have them expire instead, set it to `/tmp/explain-flow/{repo}`.
 
 ## Configure
 
@@ -24,22 +24,27 @@ Plugin settings (in `/config`, under `dcerecedo-skills`):
 
 | Setting | Default | |
 | --- | --- | --- |
-| `editorUrl` | `vscode://file/{abs}:{line}` | `{abs}`, `{path}`, `{line}` placeholders. Cursor: `cursor://file/{abs}:{line}` |
-| `outputDir` | `.claude/explanations` | relative to the repo root |
-| `openBrowser` | `true` | open the page after every render |
-| `browserCommand` | `xdg-open` | macOS: `open` |
-| `python` | `python3` | e.g. `.venv/bin/python` |
+| `editorUrl` | `vscode://file/{abs}:{line}` | shared by the plugin's skills. `{abs}`, `{path}`, `{line}` placeholders. Cursor: `cursor://file/{abs}:{line}` |
+| `browserCommand` | `xdg-open` | shared. macOS: `open` |
+| `python` | `python3` | shared. e.g. `.venv/bin/python` |
+| `explainFlowOutputDir` | `.claude/explanations` | relative to the repo root, or absolute; `{repo}` is the repo folder's name, e.g. `/tmp/explain-flow/{repo}` |
+| `explainFlowOpenBrowser` | `true` | open the page after every render |
 
-A repo can override any of them in `.claude/explain-flow.json`, and add resolvers for other languages:
+A repo can override them in `.claude/dcerecedo-skills.json`: shared keys at the top level, this skill's in its `explain-flow` section (`outputDir`, `openBrowser`, and any shared key), which is also where resolvers for other languages go:
 
 ```json
 {
-  "outputDir": "docs/flows",
-  "resolvers": [
-    { "name": "ruby", "extensions": [".rb"], "command": ["ruby", "/path/to/resolve.rb"] }
-  ]
+  "editorUrl": "cursor://file/{abs}:{line}",
+  "explain-flow": {
+    "outputDir": "docs/flows",
+    "resolvers": [
+      { "name": "ruby", "extensions": [".rb"], "command": ["ruby", "/path/to/resolve.rb"] }
+    ]
+  }
 }
 ```
+
+The skill's section wins over the top level, which wins over plugin settings.
 
 A resolver speaks the JSON protocol in `resolvers/PROTOCOL.md`. Files no resolver claims get the stack-agnostic text check.
 

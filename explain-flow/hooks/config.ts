@@ -1,6 +1,7 @@
 /**
  * Settings: the plugin's userConfig, overridden per repo by
- * `.claude/explain-flow.json` (same keys, plus `resolvers`).
+ * `.claude/dcerecedo-skills.json`, whose top-level keys are shared by the
+ * plugin's skills and whose `explain-flow` section is this skill's own.
  */
 
 export type ResolverSpec = {
@@ -24,7 +25,8 @@ export type Config = {
   resolvers: ResolverSpec[]
 }
 
-export const PROJECT_CONFIG = '.claude/explain-flow.json'
+export const PROJECT_CONFIG = '.claude/dcerecedo-skills.json'
+export const SECTION = 'explain-flow'
 
 export const BUILTIN_RESOLVERS: ResolverSpec[] = [
   {
@@ -61,30 +63,30 @@ function parseResolvers(v: unknown): ResolverSpec[] {
   })
 }
 
+const asRecord = (v: unknown): Record<string, unknown> =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+
 /**
- * Plugin options first, then the project file on top. A project resolver
- * with a built-in's name replaces it; `"resolvers": []` keeps the built-ins.
+ * Defaults, then plugin options, then the project file's shared keys, then its
+ * `explain-flow` section. A project resolver with a built-in's name replaces
+ * it; `"resolvers": []` keeps the built-ins. `{repo}` in `outputDir` is the
+ * repository folder's name, so one absolute folder can serve every repo.
  */
-export function resolveConfig(options: Record<string, unknown>, project: unknown): Config {
-  const base: Config = {
-    editorUrl: pickString(options.editorUrl, DEFAULTS.editorUrl),
-    outputDir: pickString(options.outputDir, DEFAULTS.outputDir),
-    openBrowser: pickBool(options.openBrowser, DEFAULTS.openBrowser),
-    browserCommand: pickString(options.browserCommand, DEFAULTS.browserCommand),
-    python: pickString(options.python, DEFAULTS.python),
-    resolvers: BUILTIN_RESOLVERS,
-  }
-  if (!project || typeof project !== 'object') return base
-  const p = project as Record<string, unknown>
-  const extra = parseResolvers(p.resolvers)
+export function resolveConfig(options: Record<string, unknown>, project: unknown, repoRoot: string): Config {
+  const shared = asRecord(project)
+  const own = asRecord(shared[SECTION])
+  const str = (key: string, option: unknown, fallback: string) =>
+    pickString(own[key], pickString(shared[key], pickString(option, fallback)))
+  const extra = parseResolvers(own.resolvers)
   const names = new Set(extra.map(r => r.name))
+  const repo = repoRoot.replace(/\/+$/, '').split('/').pop() || 'repo'
   return {
-    editorUrl: pickString(p.editorUrl, base.editorUrl),
-    outputDir: pickString(p.outputDir, base.outputDir),
-    openBrowser: pickBool(p.openBrowser, base.openBrowser),
-    browserCommand: pickString(p.browserCommand, base.browserCommand),
-    python: pickString(p.python, base.python),
-    resolvers: [...extra, ...base.resolvers.filter(r => !names.has(r.name))],
+    editorUrl: str('editorUrl', options.editorUrl, DEFAULTS.editorUrl),
+    outputDir: pickString(own.outputDir, pickString(options.explainFlowOutputDir, DEFAULTS.outputDir)).replaceAll('{repo}', repo),
+    openBrowser: pickBool(own.openBrowser, pickBool(options.explainFlowOpenBrowser, DEFAULTS.openBrowser)),
+    browserCommand: str('browserCommand', options.browserCommand, DEFAULTS.browserCommand),
+    python: str('python', options.python, DEFAULTS.python),
+    resolvers: [...extra, ...BUILTIN_RESOLVERS.filter(r => !names.has(r.name))],
   }
 }
 
