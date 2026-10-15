@@ -1,6 +1,6 @@
 {
   "name": "dcerecedo-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view.",
   "author": {
     "name": "Dani"
