@@ -1,13 +1,14 @@
 {
   "name": "dcerecedo-skills",
-  "version": "0.4.1",
-  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view.",
+  "version": "0.5.0",
+  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view. decycle: untangles circular imports in a Python codebase one problem at a time, producing simulated, test-first tickets for /implement.",
   "author": {
     "name": "Dani"
   },
   "repository": "https://github.com/dcerecedo/skills",
   "skills": [
-    "./skills/explain-flow"
+    "./skills/explain-flow",
+    "./skills/decycle"
   ],
   "types": "./explain-flow/types/index.d.ts",
   "userConfig": {

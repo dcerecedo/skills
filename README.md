@@ -17,10 +17,11 @@ Answer `y` to add the marketplace, then pick the user scope to have it in every 
 | Skill | What it does |
 | --- | --- |
 | [`explain-flow`](explain-flow/README.md) | Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a terminal pane and an offline browser view. |
+| [`decycle`](decycle/README.md) | Untangles circular imports in a Python codebase one problem at a time: ranked problems, a simulated refactoring plan, and test-first tickets for `/implement`. |
 
 ## Configure
 
-Settings live in `/config` under `dcerecedo-skills`. Keys a skill owns carry its name (`explainFlowOutputDir`); the rest (`editorUrl`, `browserCommand`, `python`) are shared. A repo overrides them in `.claude/dcerecedo-skills.json`: shared keys at the top level, a skill's own in a section named after it. Each skill's README lists its keys.
+Settings live in `/config` under `dcerecedo-skills`. Keys a skill owns carry its name (`explainFlowOutputDir`); the rest (`editorUrl`, `browserCommand`, `python`) are shared. A repo overrides them in `.claude/dcerecedo-skills.json`: shared keys at the top level, a skill's own in a section named after it. Each skill's README lists its keys. `decycle` reads only the project file.
 
 ## Develop
 
