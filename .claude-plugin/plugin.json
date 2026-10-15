@@ -1,0 +1,41 @@
+{
+  "name": "explain-flow",
+  "version": "0.1.0",
+  "description": "Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view.",
+  "author": {
+    "name": "Dani"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "editorUrl": {
+      "type": "string",
+      "title": "Editor link template",
+      "description": "Link opened for a code reference. Placeholders: {abs} absolute path, {path} repo-relative path, {line} line number.",
+      "default": "vscode://file/{abs}:{line}"
+    },
+    "outputDir": {
+      "type": "string",
+      "title": "Output folder",
+      "description": "Where explanations (.json and .html) are written, relative to the repo root.",
+      "default": ".claude/explanations"
+    },
+    "openBrowser": {
+      "type": "boolean",
+      "title": "Open browser view automatically",
+      "description": "Open the HTML view in the browser after each explanation is rendered.",
+      "default": true
+    },
+    "browserCommand": {
+      "type": "string",
+      "title": "Browser open command",
+      "description": "Command that opens a file in the browser; the file path is appended.",
+      "default": "xdg-open"
+    },
+    "python": {
+      "type": "string",
+      "title": "Python interpreter",
+      "description": "Interpreter for the Python/Django resolver (e.g. .venv/bin/python). Only the standard library is needed.",
+      "default": "python3"
+    }
+  }
+}

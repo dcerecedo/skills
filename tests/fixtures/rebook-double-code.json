@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "topic": "Access code issued twice when a guest rebooks",
+  "question": "Why does a rebooked stay end up with two active door codes?",
+  "scope": { "issue": "LOCK-412", "entry": "bookings/views.py:9", "base": "main" },
+  "glossary": [
+    { "term": "Stay", "code": "Booking" },
+    { "term": "Door code", "code": "AccessCode" },
+    { "term": "Lock provider", "code": "LockProviderClient" },
+    { "term": "PMS sync", "code": "sync_pms" }
+  ],
+  "diagrams": [
+    {
+      "id": "components", "title": "Components", "kind": "component",
+      "nodes": [
+        { "id": "app.bookings", "label": "Bookings", "kind": "app" },
+        { "id": "app.locks", "label": "Locks", "kind": "app" },
+        { "id": "c.api", "label": "Rebook endpoint", "kind": "view", "parent": "app.bookings", "code": "RebookView", "ref": "bookings/views.py:8" },
+        { "id": "c.service", "label": "Rebooking service", "kind": "service", "parent": "app.bookings", "code": "rebook", "ref": "bookings/services.py:6" },
+        { "id": "c.signal", "label": "Stay-saved handler", "kind": "signal", "parent": "app.bookings", "code": "on_booking_saved", "ref": "bookings/signals.py:10" },
+        { "id": "c.task", "label": "PMS sync task", "kind": "task", "parent": "app.bookings", "code": "sync_pms", "ref": "bookings/tasks.py:7" },
+        { "id": "c.locksvc", "label": "Door code service", "kind": "service", "parent": "app.locks", "code": "LockService", "ref": "locks/service.py:7" },
+        { "id": "c.provider", "label": "Lock provider API", "kind": "external", "code": "LockProviderClient", "ref": "locks/client.py:4" }
+      ],
+      "edges": [
+        { "id": "e.api.service", "from": "c.api", "to": "c.service", "label": "rebook stay", "code": "rebook", "ref": "bookings/views.py:11", "type": "sync" },
+        { "id": "e.service.locks", "from": "c.service", "to": "c.locksvc", "label": "issue door code", "code": "LockService.issue_code", "ref": "bookings/services.py:11", "type": "sync" },
+        { "id": "e.service.signal", "from": "c.service", "to": "c.signal", "label": "stay saved", "code": "on_booking_saved", "ref": "bookings/services.py:10", "type": "async", "via": "signal" },
+        { "id": "e.signal.locks", "from": "c.signal", "to": "c.locksvc", "label": "issue door code", "code": "LockService.issue_code", "ref": "bookings/signals.py:13", "type": "sync" },
+        { "id": "e.service.task", "from": "c.service", "to": "c.task", "label": "enqueue sync", "code": "sync_pms", "ref": "bookings/services.py:12", "type": "async", "via": "task" },
+        { "id": "e.locks.provider", "from": "c.locksvc", "to": "c.provider", "label": "create code", "code": "create_code", "ref": "locks/service.py:13", "type": "sync" }
+      ]
+    },
+    {
+      "id": "seq", "title": "Rebooking", "kind": "sequence",
+      "participants": [
+        { "id": "p.guest", "label": "Guest app", "kind": "actor" },
+        { "id": "p.api", "label": "Rebook endpoint", "component": "c.api", "code": "RebookView", "ref": "bookings/views.py:8" },
+        { "id": "p.service", "label": "Rebooking service", "component": "c.service", "code": "rebook", "ref": "bookings/services.py:6" },
+        { "id": "p.signal", "label": "Stay-saved handler", "component": "c.signal", "code": "on_booking_saved", "ref": "bookings/signals.py:10" },
+        { "id": "p.locks", "label": "Door code service", "component": "c.locksvc", "code": "LockService", "ref": "locks/service.py:7" },
+        { "id": "p.provider", "label": "Lock provider", "kind": "external", "component": "c.provider" }
+      ],
+      "steps": [
+        { "id": "s1", "type": "sync", "from": "p.guest", "to": "p.api", "label": "POST rebook stay", "code": "RebookView", "ref": "bookings/urls.py:6", "via": "url" },
+        { "id": "s2", "type": "sync", "from": "p.api", "to": "p.service", "label": "rebook(stay, new dates)", "code": "rebook", "ref": "bookings/views.py:11" },
+        { "id": "s3", "type": "async", "from": "p.service", "to": "p.signal", "label": "stay saved (post_save)", "code": "on_booking_saved", "ref": "bookings/services.py:10", "via": "signal" },
+        { "id": "f1", "type": "fragment", "operator": "opt", "label": "status confirmed or rebooked", "branches": [
+          { "steps": [
+            { "id": "s4", "type": "sync", "from": "p.signal", "to": "p.locks", "label": "issue door code", "code": "LockService.issue_code", "ref": "bookings/signals.py:13" },
+            { "id": "s5", "type": "sync", "from": "p.locks", "to": "p.provider", "label": "create code #1", "code": "create_code", "ref": "locks/service.py:13" }
+          ] }
+        ] },
+        { "id": "s6", "type": "sync", "from": "p.service", "to": "p.locks", "label": "issue door code", "code": "LockService.issue_code", "ref": "bookings/services.py:11" },
+        { "id": "s7", "type": "sync", "from": "p.locks", "to": "p.provider", "label": "create code #2", "code": "create_code", "ref": "locks/service.py:13" },
+        { "id": "n1", "type": "note", "over": ["p.locks", "p.provider"], "text": "Nothing revokes code #1: both stay active until the stay ends." },
+        { "id": "x1", "type": "collapsed", "from": "p.service", "label": "PMS sync via Celery", "hiddenCalls": 3, "refs": ["bookings/tasks.py:7"] },
+        { "id": "s8", "type": "return", "from": "p.api", "to": "p.guest", "label": "200 rebooked" }
+      ]
+    },
+    {
+      "id": "states", "title": "Stay status", "kind": "state",
+      "nodes": [
+        { "id": "st.init", "label": "", "kind": "initial" },
+        { "id": "st.confirmed", "label": "confirmed", "kind": "state" },
+        { "id": "st.rebooked", "label": "rebooked", "kind": "state" },
+        { "id": "st.end", "label": "", "kind": "final" }
+      ],
+      "edges": [
+        { "id": "t1", "from": "st.init", "to": "st.confirmed", "label": "booked", "type": "transition" },
+        { "id": "t2", "from": "st.confirmed", "to": "st.rebooked", "label": "rebook (issues code)", "type": "transition", "ref": "bookings/services.py:9" },
+        { "id": "t3", "from": "st.rebooked", "to": "st.rebooked", "label": "rebook again", "type": "transition" },
+        { "id": "t4", "from": "st.rebooked", "to": "st.end", "label": "checkout", "type": "transition" }
+      ]
+    }
+  ],
+  "blocks": [
+    { "id": "b1", "title": "The guest asks to move the stay", "text": "The guest app calls the rebook endpoint, which Django routes to `RebookView` [[ref:bookings/urls.py:6]]. The endpoint loads the stay and hands it to the rebooking service with the new dates [[ref:bookings/views.py:11]].", "highlights": { "components": ["c.api", "c.service", "e.api.service"], "seq": ["s1", "s2"] } },
+    { "id": "b2", "title": "Saving the stay fires the stay-saved handler", "text": "The service updates the dates, marks the stay as rebooked and saves it [[ref:bookings/services.py:10]]. That save sends Django's `post_save` signal, and the stay-saved handler is registered for it [[ref:bookings/signals.py:9]]. Because the status is now rebooked, the handler issues a door code [[ref:bookings/signals.py:13]]: this is code #1.", "highlights": { "components": ["c.signal", "e.service.signal", "e.signal.locks"], "seq": ["s3", "f1", "s4", "s5"], "states": ["t2"] } },
+    { "id": "b3", "title": "The service then issues a second code", "text": "Right after the save, the service calls the door code service itself [[ref:bookings/services.py:11]], which asks the lock provider for another code [[ref:locks/service.py:13]]. This is where the issue is decided: the rebooking flow issues a code explicitly while the signal already did it implicitly.", "highlights": { "components": ["c.locksvc", "c.provider", "e.service.locks", "e.locks.provider"], "seq": ["s6", "s7", "n1"] } },
+    { "id": "b4", "title": "Nothing revokes the first code", "text": "The door code service only creates codes [[ref:locks/service.py:11-14]]; there is no revoke step in either path, so both codes stay valid. Fixing it means choosing one owner for code issuance: either the signal or the service, not both.", "highlights": { "seq": ["n1"], "components": ["c.locksvc"] } },
+    { "id": "b5", "title": "PMS sync runs in the background", "text": "Finally the service enqueues the PMS sync as a Celery task [[ref:bookings/services.py:12]]. It does not touch door codes, so it is collapsed here.", "highlights": { "components": ["c.task", "e.service.task"], "seq": ["x1"] } },
+    { "id": "b6", "title": "Rebooking an already rebooked stay", "text": "Each further rebook repeats both paths, adding two more codes each time.", "highlights": { "states": ["t3"] } }
+  ]
+}
