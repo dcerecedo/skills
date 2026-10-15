@@ -6,6 +6,7 @@ import { resolveConfig } from '../hooks/config'
 import { collectRefChecks, fileStem, slugify, textCheck, validateStructure } from '../hooks/model'
 import { runPipeline, type PipelineIO } from '../hooks/pipeline'
 import { buildHtml, readPageMeta } from '../hooks/viewer'
+import { compactRenderInput, compactResult, outputText } from '../hooks/register'
 
 const MODEL: Explanation = {
   version: 1,
@@ -316,9 +317,13 @@ function fakeHost(on: On) {
     ran.push([...e.argv])
     return { value: { exitCode: 1, stdout: '', stderr: 'not available in tests', isStdoutTruncated: false, isStderrTruncated: false } }
   })
-  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  const opened: string[] = []
+  on('ui.open', async (_$, e) => {
+    opened.push(e.id)
+    return { value: { isPlaced: true } }
+  })
   on('ui.toast', async () => ({ value: undefined }))
-  return { written, ran }
+  return { written, ran, opened }
 }
 
 describe('saved explanations', () => {
@@ -350,6 +355,95 @@ describe('saved explanations', () => {
     expect(text).toContain(`**${clone().topic}**`)
     expect(text).toContain('(page only)')
   })
+})
+
+describe('saved explanations, for the model', () => {
+  test('the list tool lists by number and name, and the open tool reopens one into the pane without new files', async ($, on) => {
+    const host = fakeHost(on)
+    const opened = host.opened
+    await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
+    const listed = JSON.stringify(await $.tool.call({ tool: 'mcp__dcerecedo-skills__list_flow_explanations' } as never))
+    expect(listed).toContain('1. **Access code issued twice')
+    const stem = /`(\d{4}-\d{2}-\d{2}-\d{4}-[a-z0-9-]+)`/.exec(listed)?.[1]
+    expect(stem).toBeDefined()
+
+    const before = Object.keys(host.written).length
+    opened.length = 0
+    const r = JSON.stringify(await $.tool.call({ tool: 'mcp__dcerecedo-skills__open_flow_explanation', name: stem } as never))
+    expect(r).toContain('Opened [Access code issued twice')
+    expect(opened).toEqual(['explain-flow'])
+    expect(Object.keys(host.written).length).toBe(before)
+  })
+
+  test('an unknown name answers with the list to choose from', async ($, on) => {
+    fakeHost(on)
+    await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)
+    const r = JSON.stringify(await $.tool.call({ tool: 'mcp__dcerecedo-skills__open_flow_explanation', name: '7' } as never))
+    expect(r).toContain('No explanation \\"7\\"')
+    expect(r).toContain('1. **Access code issued twice')
+  })
+})
+
+describe('compact tool rows', () => {
+  test('the render call shows topic, issue, diagram kinds and block count instead of the model', () => {
+    expect(compactRenderInput({ explanation: clone() })).toEqual({
+      topic: clone().topic,
+      issue: 'LOCK-412',
+      diagrams: clone().diagrams.map(d => d.kind).join(', '),
+      blocks: clone().blocks.length,
+    })
+  })
+
+  test('a render result becomes one line with links to the page and the model', async ($, on) => {
+    fakeHost(on)
+    const r = (await $.tool.call({ tool: 'mcp__dcerecedo-skills__render_flow_explanation', explanation: clone() } as never)) as { text?: string }
+    const line = compactResult('render_flow_explanation', outputText(r.text ?? r))
+    expect(line?.text).toMatch(/^\d+ references checked · \d+ calls verified, \d+ not verifiable/)
+    expect(line?.links.map(l => l.label)).toEqual(['page', 'model'])
+    expect(line?.links.every(l => l.href.startsWith('file:///repo/.claude/explanations/'))).toBe(true)
+  })
+
+  test('stored outputs are read whatever shape they come in', () => {
+    expect(outputText('a')).toBe('a')
+    expect(outputText([{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }])).toBe('a\nb')
+    expect(outputText({ content: [{ type: 'text', text: 'c' }] })).toBe('c')
+    expect(outputText({ result: 'd' })).toBe('d')
+  })
+
+  for (const surface of ['terminal', 'desktop'] as const)
+    test(`on ${surface}, the rows are compact on success and the engine's own on error`, async ($, on) => {
+      const seen: { component: string; props: Record<string, unknown> }[] = []
+      // the engine's own rows, beneath the plugin
+      on('ui.render', { component: 'ToolUse' }, async (e$, e) => {
+        seen.push({ component: e.component, props: e.props as never })
+        const { Text } = e$.ui.resolve(e)
+        return <Text>engine row</Text>
+      })
+      on('ui.render', { component: 'ToolResult' }, async (e$, e) => {
+        seen.push({ component: e.component, props: e.props as never })
+        const { Text } = e$.ui.resolve(e)
+        return <Text>engine result</Text>
+      })
+      const tool = 'mcp__dcerecedo-skills__render_flow_explanation'
+      const use = await $.ui.mount({
+        plugin: 'dcerecedo-skills',
+        surface,
+        component: 'ToolUse',
+        props: { tool_use_id: 't1', tool, input: { explanation: clone() }, isRunning: false, isErrored: false, isInterrupted: false } as never,
+      })
+      expect(seen[0]?.props.input).toEqual(compactRenderInput({ explanation: clone() }))
+      await use.unmount()
+
+      const text = 'Rendered "x".\nPage: [x](file:///tmp/x.html)\nModel: /tmp/x.json\nReferences checked: 9 (python); interactions verified: 4, not verifiable statically: 1.'
+      const ok = await $.ui.mount({ plugin: 'dcerecedo-skills', surface, component: 'ToolResult', props: { tool_use_id: 't1', tool, output: text, isErrored: false } as never })
+      expect(await ok.find({ type: 'Text', text: '9 references checked · 4 calls verified, 1 not verifiable' })).toBeDefined()
+      expect(seen.filter(x => x.component === 'ToolResult')).toHaveLength(0)
+      await ok.unmount()
+
+      const bad = await $.ui.mount({ plugin: 'dcerecedo-skills', surface, component: 'ToolResult', props: { tool_use_id: 't2', tool, output: 'Errors: …', isErrored: true } as never })
+      expect(seen.filter(x => x.component === 'ToolResult')).toHaveLength(1)
+      await bad.unmount()
+    })
 })
 
 describe('render tool and pane', () => {

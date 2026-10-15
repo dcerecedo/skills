@@ -13,6 +13,8 @@ Requirements: `git`; `python3` for Python repositories (standard library only); 
 
 - `/dcerecedo-skills:explain-flow [focus]`, or just ask "explain how the rebooking flow issues door codes".
 - `/flow-view` reopens the pane; `/flow-view list` lists the saved explanations in the output folder, newest first, with title, issue, date, question and a link to the page; `/flow-view <number>` (from the list) or `/flow-view <name>` reopens one in the pane and rebuilds its page.
+- Ask Claude for one made before ("open the EDEV-166 explanation"): it finds it with the `list_flow_explanations` tool and reopens it with `open_flow_explanation`, or shows the list and asks which one. A request with its own focus or question is always traced anew; when it is unclear which you mean, Claude asks first.
+- In the transcript the plugin's tool calls take one line each (the render call shows topic, issue, diagrams and block count; its result the reference counts with links to the page and the model); validation errors show in full.
 - Pane keys (once the pane has focus): `1`–`9` tabs, `j` / `k` next and previous paragraph, `o` open the browser page at the current tab and paragraph.
 - Browser page: click a paragraph or use `j` / `k`; click a diagram element to jump to the paragraphs that explain it (click again to cycle); double-click an element to open its code; `1`–`9` tabs, `+` / `-` / `0` zoom, `l` legend, `t` theme, Esc clears.
 
@@ -64,7 +66,7 @@ The Python resolver uses `ast` and follows the Django hops a plain call graph mi
 ```
 ../skills/explain-flow/SKILL.md   the prompt
 ../hooks/hooks.json               loads hooks/register.tsx below as the plugin's module
-hooks/                            the mod: tools, /flow-view, pane, validation, page builder
+hooks/                            the mod: tools, /flow-view, pane, compact tool rows, validation, page builder
 types/index.d.ts                  the explanation model and the mod's state
 viewer/                           the page template and vendored ELK (EPL-2.0)
 resolvers/                        protocol and the Python/Django resolver
