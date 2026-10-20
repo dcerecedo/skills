@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ds-inventory/1",
+  "title": "Inventory: what a product renders and contains",
+  "description": "inventory.json is written by crawl.template.js. source.json and components.json sit next to it and follow $defs.source and $defs.components.",
+  "type": "object",
+  "required": ["meta", "states", "errors", "values", "pairs", "summary"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema", "generatedAt", "baseUrl", "commit"],
+      "properties": {
+        "schema": { "const": "ds-inventory/1" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "baseUrl": { "type": "string" },
+        "commit": { "type": "string", "description": "Product repo HEAD when crawled." },
+        "viewports": { "type": "array" }
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "url", "elements"],
+        "properties": {
+          "id": { "type": "string", "description": "viewport/route/state" },
+          "url": { "type": "string" },
+          "status": { "type": ["integer", "null"] },
+          "elements": { "type": "integer" },
+          "screenshot": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "error"] }
+    },
+    "values": {
+      "description": "group -> CSS property -> computed value -> occurrence",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/occurrence" }
+        }
+      }
+    },
+    "pairs": {
+      "description": "'fg | bg' -> occurrence plus fontSizes and bold",
+      "type": "object",
+      "additionalProperties": {
+        "allOf": [{ "$ref": "#/$defs/occurrence" }],
+        "properties": {
+          "fontSizes": { "type": "array", "items": { "type": "string" } },
+          "bold": { "type": "boolean" }
+        }
+      }
+    },
+    "summary": { "type": "object", "additionalProperties": { "type": "integer" } }
+  },
+  "$defs": {
+    "occurrence": {
+      "type": "object",
+      "required": ["count", "states", "samples"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "samples": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source": {
+      "description": "source.json: hardcoded style values in the product source.",
+      "type": "object",
+      "required": ["meta", "files", "total"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["schema", "commit", "generatedAt"],
+          "properties": { "schema": { "const": "ds-inventory-source/1" } }
+        },
+        "total": { "type": "integer" },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "count"],
+            "properties": {
+              "path": { "type": "string" },
+              "count": { "type": "integer" },
+              "kinds": { "type": "object", "additionalProperties": { "type": "integer" }, "description": "e.g. hex, rgb, px, inline-style" }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "description": "components.json: component usage in the product source.",
+      "type": "object",
+      "required": ["meta", "components"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["schema", "commit", "tool"],
+          "properties": {
+            "schema": { "const": "ds-inventory-components/1" },
+            "tool": { "type": "string", "description": "react-scanner, grep (approximate), ..." }
+          }
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "instances"],
+            "properties": {
+              "name": { "type": "string" },
+              "importedFrom": { "type": "string" },
+              "instances": { "type": "integer" },
+              "props": {
+                "type": "object",
+                "description": "prop -> value -> count",
+                "additionalProperties": { "type": "object", "additionalProperties": { "type": "integer" } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

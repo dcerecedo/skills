@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ds-mapping/1",
+  "title": "Mapping: how a source fits a target design system",
+  "description": "Written by scripts/map.py. The source is an inventory (value-level fit, counted in rendered instances) or a manifest (token-to-token translation). `components` is added by ds-map after the script runs and is preserved on reruns.",
+  "type": "object",
+  "required": ["meta", "coverage", "rows", "residuals"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema", "generatedAt", "source", "target", "theme", "thresholds"],
+      "properties": {
+        "schema": { "const": "ds-mapping/1" },
+        "generatedAt": { "type": "string" },
+        "source": {
+          "type": "object",
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": { "enum": ["inventory", "manifest"] },
+            "path": { "type": "string" },
+            "name": { "type": "string" },
+            "commit": { "type": "string" },
+            "generatedAt": { "type": "string" }
+          }
+        },
+        "target": {
+          "type": "object",
+          "required": ["name", "version", "path"],
+          "properties": { "name": { "type": "string" }, "version": { "type": "string" }, "path": { "type": "string" } }
+        },
+        "theme": { "type": "string" },
+        "thresholds": { "type": "object" }
+      }
+    },
+    "coverage": {
+      "description": "category -> {weight, mapped, near, share}. Weight is rendered instances for an inventory source, tokens (or evidence instances) for a manifest source.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["weight", "mapped", "share"],
+        "properties": {
+          "weight": { "type": "number" },
+          "mapped": { "type": "number" },
+          "near": { "type": "number" },
+          "share": { "type": ["number", "null"] },
+          "targetHasScale": { "type": "boolean" }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "value", "weight", "status"],
+        "properties": {
+          "property": { "type": "string" },
+          "sourceToken": { "type": "string" },
+          "category": { "type": "string" },
+          "value": { "type": "string" },
+          "weight": { "type": "number" },
+          "states": { "type": "array", "items": { "type": "string" } },
+          "token": { "type": ["string", "null"] },
+          "tokenValue": { "type": ["string", "null"] },
+          "distance": { "type": ["number", "null"], "description": "ΔE OK for colors, px for dimensions, 0/1 for exact-match categories." },
+          "status": { "enum": ["mapped", "near", "unmapped", "no-target-scale", "unparsed"] },
+          "otherRole": { "type": ["string", "null"], "description": "A token outside the compatible roles that would match: a role mismatch to review." }
+        }
+      }
+    },
+    "residuals": {
+      "description": "Unmapped values grouped into candidates for extending the target (or for changing the UI).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "representative", "weight", "members"],
+        "properties": {
+          "category": { "type": "string" },
+          "representative": { "type": "string" },
+          "weight": { "type": "number" },
+          "members": { "type": "array", "items": { "type": "string" } },
+          "nearestToken": { "type": ["string", "null"] },
+          "distance": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "pairs": {
+      "description": "Inventory source only: rendered text/background pairs with WCAG 2.2 contrast and their mapped tokens.",
+      "type": "array"
+    },
+    "targetPairs": {
+      "description": "The target's declared pairs checked for contrast in this theme.",
+      "type": "array"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target"],
+        "properties": {
+          "source": { "type": "string" },
+          "instances": { "type": "integer" },
+          "target": { "type": ["string", "null"], "description": "null: no equivalent in the target." },
+          "propMap": { "type": "object" },
+          "unsupported": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

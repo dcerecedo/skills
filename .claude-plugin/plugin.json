@@ -1,14 +1,19 @@
 {
   "name": "dcerecedo-skills",
-  "version": "0.5.0",
-  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view. derive-design-system: derives a design system from what a product actually ships (playwright-cli crawl, DTCG tokens, measured acceptance criteria).",
+  "version": "0.6.0",
+  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view. design-system (with ds-inventory, ds-resolve, ds-derive, ds-map, ds-enforce): design-system work grounded in what a product ships: crawl inventory, own or third-party manifests, measured mapping and comparison, enforcement.",
   "author": {
     "name": "Dani"
   },
   "repository": "https://github.com/dcerecedo/skills",
   "skills": [
     "./skills/explain-flow",
-    "./skills/derive-design-system"
+    "./skills/design-system",
+    "./skills/ds-inventory",
+    "./skills/ds-resolve",
+    "./skills/ds-derive",
+    "./skills/ds-map",
+    "./skills/ds-enforce"
   ],
   "types": "./explain-flow/types/index.d.ts",
   "userConfig": {

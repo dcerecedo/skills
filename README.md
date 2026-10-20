@@ -17,7 +17,12 @@ Answer `y` to add the marketplace, then pick the user scope to have it in every 
 | Skill | What it does |
 | --- | --- |
 | [`explain-flow`](explain-flow/README.md) | Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a terminal pane and an offline browser view. |
-| [`derive-design-system`](skills/derive-design-system/SKILL.md) | Derives a design system from what the product ships: crawls the running app with [playwright-cli](https://playwright.dev/agent-cli/skills), compresses rendered values into DTCG tokens and component contracts, and measures coverage, contrast, visual diff and a codegen eval. Needs `@playwright/cli`; smoke test in `derive-design-system/tests/run.sh`. |
+| [`design-system`](skills/design-system/SKILL.md) | Design-system work grounded in what the product ships. Routes between the five steps below and stops for your decisions between them. Start here. |
+| [`ds-inventory`](skills/ds-inventory/SKILL.md) | Crawls the running app with [playwright-cli](https://playwright.dev/agent-cli/skills) (routes × states × viewports) and scans the source: every rendered style value with counts, contrast pairs, screenshots, hardcoded values, component usage. Compare mode diffs two crawls. |
+| [`ds-resolve`](skills/ds-resolve/SKILL.md) | Captures a third-party design system (package, token file, Figma library or docs site) into a neutral manifest. Nothing system-specific is built in. |
+| [`ds-derive`](skills/ds-derive/SKILL.md) | Derives the product's own system from its inventory: DTCG-style tokens, scales with residuals, contrast-safe ramps, component contracts, each token with its evidence. |
+| [`ds-map`](skills/ds-map/SKILL.md) | Fits an inventory or a manifest onto one or more target manifests: coverage in rendered instances, residuals, role mismatches, contrast, component gaps, side-by-side comparison. |
+| [`ds-enforce`](skills/ds-enforce/SKILL.md) | Sets the codebase up to stay on the chosen system: tokens or target theme, rules for coding agents, lint with a legacy baseline, axe, drift job, and a codegen eval. |
 
 ## Configure
 
@@ -39,4 +44,7 @@ claude --plugin-dir .    # load this working copy for one session; edits hot-rel
 skills/<skill>/SKILL.md          one folder per skill
 hooks/hooks.json                 the plugin's hooks modules, one per skill that has a mod
 <skill>/                         a skill's mod code, assets and tests
+design-system/                   shared by the ds-* skills: CONVENTIONS.md, schemas/, scripts/, crawl template, tests
 ```
+
+The design-system skills need `@playwright/cli` (written against 0.1.22) for crawling. Tests: `design-system/tests/run.sh` (end to end, needs a browser; `PW_CONFIG=<playwright-cli.json>` to point at a custom Chromium) and `python3 -m unittest design-system/tests/test_map.py` (no browser).

@@ -1,0 +1,19 @@
+{
+ "meta": {"schema": "ds-manifest/1", "name": "Fixture target", "version": "1", "generatedAt": "2026-10-20T00:00:00Z",
+          "source": {"kind": "tokens-file", "ref": "tests/fixture/target.manifest.json"}},
+ "themes": ["light"], "defaultTheme": "light",
+ "tokens": [
+  {"name": "text-primary", "category": "color", "role": "text", "tier": "semantic", "values": {"light": "#1a1a1a"}},
+  {"name": "text-muted", "category": "color", "role": "text", "tier": "semantic", "values": {"light": "#6b6b6b"}},
+  {"name": "bg-default", "category": "color", "role": "background", "tier": "semantic", "values": {"light": "#ffffff"}},
+  {"name": "bg-accent", "category": "color", "role": "background", "tier": "semantic", "values": {"light": "#3366ff"}},
+  {"name": "overlay-clear", "category": "color", "role": "background", "tier": "semantic", "values": {"light": "rgba(255, 255, 255, 0)"}},
+  {"name": "avatar-ring", "category": "color", "values": {"light": "#999999"}},
+  {"name": "space-2", "category": "dimension", "role": "spacing", "values": {"light": "8px"}},
+  {"name": "space-4", "category": "dimension", "role": "spacing", "values": {"light": "1rem"}},
+  {"name": "space-6", "category": "dimension", "role": "spacing", "values": {"light": "24px"}},
+  {"name": "radius-sm", "category": "dimension", "role": "radius", "values": {"light": "4px"}}
+ ],
+ "textStyles": [{"name": "body", "fontFamily": "Inter, sans-serif", "fontSize": "16px", "fontWeight": 400, "lineHeight": 1.5}],
+ "pairs": [{"fg": "text-muted", "bg": "bg-default", "use": "body"}, {"fg": "text-primary", "bg": "missing", "use": "body"}]
+}

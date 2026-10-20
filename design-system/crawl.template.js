@@ -1,4 +1,4 @@
-// derive-design-system: crawl template for `playwright-cli run-code --filename=<filled copy>`.
+// ds-inventory: crawl template for `playwright-cli run-code --filename=<filled copy>`.
 //
 // run-code evaluates ONE function expression that receives the Playwright `page`.
 // It cannot import, require or take arguments, so copy this file to a scratch
@@ -13,6 +13,7 @@ async (page) => {
   // ---- CONFIG: fill in the scratch copy -----------------------------------
   const CONFIG = {
     baseUrl: '__BASE_URL__',          // e.g. 'https://staging.example.com'
+    commit: '__COMMIT__',             // `git rev-parse HEAD` of the product repo
     outDir: '__OUT_DIR__',            // absolute path for screenshots
     viewports: [{ name: 'desktop', width: 1440, height: 900 }],
     screenshots: true,
@@ -102,7 +103,9 @@ async (page) => {
   };
 
   // Merge one state's extraction into the global inventory.
-  const inventory = { baseUrl: CONFIG.baseUrl, generatedAt: new Date().toISOString(),
+  const inventory = {
+    meta: { schema: 'ds-inventory/1', generatedAt: new Date().toISOString(), baseUrl: CONFIG.baseUrl,
+      commit: CONFIG.commit, viewports: CONFIG.viewports },
     states: [], errors: [], values: {}, pairs: {} };
   const merge = (target, src, stateId) => {
     for (const [k, e] of Object.entries(src)) {

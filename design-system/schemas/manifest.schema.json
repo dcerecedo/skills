@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ds-manifest/1",
+  "title": "Manifest: what a design system offers",
+  "description": "Neutral form for any design system, whether resolved from a third party (ds-resolve) or derived from an inventory (ds-derive). Values are resolved per theme (no aliases left to follow); `alias` records where one came from.",
+  "type": "object",
+  "required": ["meta", "themes", "tokens"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema", "name", "version", "source", "generatedAt"],
+      "properties": {
+        "schema": { "const": "ds-manifest/1" },
+        "name": { "type": "string" },
+        "version": { "type": "string", "description": "Package version, file hash or the inventory commit for derived systems." },
+        "source": {
+          "type": "object",
+          "required": ["kind", "ref"],
+          "properties": {
+            "kind": { "enum": ["tokens-file", "package", "figma", "docs-crawl", "derived"] },
+            "ref": { "type": "string", "description": "Package spec, file path or URL, Figma file key, docs URL, or inventory path." },
+            "notes": { "type": "string", "description": "What could not be resolved and how normalization decided ambiguous cases." }
+          }
+        },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "themes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "defaultTheme": { "type": "string" },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "category", "values"],
+        "properties": {
+          "name": { "type": "string", "description": "The name code uses, in the target's own convention (e.g. $text-primary, --fgColor-muted)." },
+          "category": {
+            "enum": ["color", "dimension", "fontFamily", "fontWeight", "fontSize", "lineHeight", "letterSpacing", "shadow", "duration", "cubicBezier", "other"]
+          },
+          "role": {
+            "description": "What the token is for. Map only matches a rendered property against tokens of a compatible role. Omit when unknown.",
+            "enum": ["text", "background", "border", "icon", "focus", "accent", "spacing", "size", "radius", "border-width", "elevation", "motion", "typography"]
+          },
+          "tier": { "enum": ["primitive", "semantic", "component"] },
+          "values": {
+            "type": "object",
+            "description": "theme -> CSS value as the browser would compute it (colors as #rrggbb or rgba(), dimensions in px).",
+            "additionalProperties": { "type": ["string", "number"] }
+          },
+          "alias": { "type": "string" },
+          "description": { "type": "string" },
+          "evidence": { "type": "object", "description": "Derived systems only: instances absorbed, source values merged." }
+        }
+      }
+    },
+    "textStyles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "fontSize"],
+        "properties": {
+          "name": { "type": "string" },
+          "fontFamily": { "type": "string" },
+          "fontSize": { "type": "string" },
+          "fontWeight": { "type": ["string", "number"] },
+          "lineHeight": { "type": ["string", "number"] },
+          "letterSpacing": { "type": "string" }
+        }
+      }
+    },
+    "pairs": {
+      "description": "Foreground/background combinations the system declares as allowed.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fg", "bg", "use"],
+        "properties": {
+          "fg": { "type": "string" },
+          "bg": { "type": "string" },
+          "use": { "enum": ["body", "large", "ui"] }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "importFrom": { "type": "string" },
+          "variants": {
+            "type": "object",
+            "description": "prop -> allowed values",
+            "additionalProperties": { "type": "array" }
+          },
+          "props": { "type": "array", "items": { "type": "string" } },
+          "notSupported": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

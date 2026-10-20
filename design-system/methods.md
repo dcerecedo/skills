@@ -1,6 +1,6 @@
 # Methods
 
-Techniques for phase 2, in the order they are usually needed. Each one ends in numbers the user can check: what was merged, what it absorbed, what was left over.
+Techniques used by ds-derive (and, for parsing and distances, by `scripts/map.py`), in the order they are usually needed. Each one ends in numbers the user can check: what was merged, what it absorbed, what was left over.
 
 ## Reading the inventory
 
@@ -13,11 +13,11 @@ Techniques for phase 2, in the order they are usually needed. Each one ends in n
 
 Counts are element-weighted, so a value used by one large table dominates one used in a single button. Report both counts and the number of states a value appears in; a value present in many states is more structural than a frequent one in one state.
 
-The crawl sees rendered styles only. Values defined but never rendered (dead CSS, unreachable states) are not in it; the source scan in phase 1 is where those show up.
+The crawl sees rendered styles only. Values defined but never rendered (dead CSS, unreachable states) are not in it; the source scan (`source.json`) is where those show up.
 
 ## Color
 
-1. Parse every color to OKLCH with culori (`npx` or a scratch `npm install culori`). Composite colors with alpha over the background they appear on (from `pairs`) before comparing; an `rgba(0,0,0,.6)` text and a `#666` text are the same color to the reader.
+1. Parse every color to OKLab/OKLCH: `scripts/dslib.py` has `parse_color`, `to_oklab` and `delta_e` (standard library only); culori is the JavaScript alternative. Composite colors with alpha over the background they appear on (from `pairs`) before comparing; an `rgba(0,0,0,.6)` text and a `#666` text are the same color to the reader.
 2. Cluster with a perceptual distance: ΔE OK (Euclidean in OKLab) ≤ 0.02 merges values nobody can tell apart; 0.02–0.05 are near-duplicates that need a decision. State the threshold used.
 3. For each cluster report the members, total count and states, and pick the representative by count, not by the centroid, so the token is a value that already ships.
 4. Group clusters into hue families, then rebuild each family as a ramp generated from contrast targets (Adobe Leonardo's approach: specify target ratios against the background, solve lightness). Map each old cluster to its nearest new step and report the ΔE moved.
@@ -43,7 +43,7 @@ The crawl sees rendered styles only. Values defined but never rendered (dead CSS
 - Format: W3C Design Tokens Community Group (DTCG) JSON, `$value` / `$type` / `$description`, aliases as `{color.blue.500}`.
 - Tiers: primitives (raw scales, no meaning), semantic tokens (`color.text.muted`, `space.inset.md`) that alias primitives, component tokens only where a component genuinely deviates.
 - Naming grammar: `category.role.variant.state`, written down in the proposal with examples, so new tokens follow it.
-- Themes: one semantic set per mode found in phase 1 (light, dark, high contrast); primitives stay shared.
+- Themes: one semantic set per mode the inventory shows (light, dark, high contrast); primitives stay shared.
 - Each semantic token's `$description` states the evidence: how many rendered instances it replaces.
 
 ## Components
@@ -57,4 +57,4 @@ The crawl sees rendered styles only. Values defined but never rendered (dead CSS
 - Token builds: Style Dictionary (v4 reads DTCG) or Terrazzo, outputting CSS custom properties, a Tailwind theme or the stack's config, and Figma variables.
 - Lint: stylelint-declaration-strict-value for CSS, an ESLint rule against literal colors and sizes in JS styles; allow-list the token files themselves.
 - Accessibility: axe-core through the existing test runner (`@axe-core/playwright` for Playwright suites).
-- Visual regression: rerun the phase 1 crawl and diff screenshots per state (pixelmatch or Playwright's `toHaveScreenshot`); Chromatic if the repo already uses Storybook.
+- Visual regression: rerun the inventory crawl and use ds-inventory's compare mode (`scripts/diff-shots.cjs`); Chromatic if the repo already uses Storybook.
