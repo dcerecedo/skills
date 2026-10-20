@@ -17,6 +17,7 @@ Answer `y` to add the marketplace, then pick the user scope to have it in every 
 | Skill | What it does |
 | --- | --- |
 | [`explain-flow`](explain-flow/README.md) | Explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a terminal pane and an offline browser view. |
+| [`derive-design-system`](skills/derive-design-system/SKILL.md) | Derives a design system from what the product ships: crawls the running app with [playwright-cli](https://playwright.dev/agent-cli/skills), compresses rendered values into DTCG tokens and component contracts, and measures coverage, contrast, visual diff and a codegen eval. Needs `@playwright/cli`; smoke test in `derive-design-system/tests/run.sh`. |
 
 ## Configure
 

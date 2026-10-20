@@ -2,3 +2,8 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+
+# derive-design-system: auth state carries live tokens
+storage-state*.json
+.claude/design-system/.auth/
+.playwright-cli/
