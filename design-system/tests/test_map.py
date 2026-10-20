@@ -23,14 +23,21 @@ INVENTORY = {
             "background-color": {"rgb(255, 255, 255)": {"count": 1, "states": ["d/home/default"], "samples": ["body"]},
                                  "rgb(52, 103, 254)": {"count": 2, "states": ["d/home/default"], "samples": ["b"]},
                                  "rgb(10, 200, 10)": {"count": 1, "states": ["d/home/default"], "samples": ["c"]}}},
-        "spacing": {"padding-left": {"16px": {"count": 4, "states": ["d/home/default"], "samples": ["b"]},
-                                     "15px": {"count": 1, "states": ["d/home/default"], "samples": ["c"]},
-                                     "40px": {"count": 1, "states": ["d/home/default"], "samples": ["d"]}}},
-        "radius": {"border-top-left-radius": {"6px": {"count": 1, "states": ["d/home/default"], "samples": ["b"]}}},
+        "spacing": {"padding": {"16px": {"count": 4, "states": ["d/home/default"], "samples": ["b"]},
+                                "15px": {"count": 1, "states": ["d/home/default"], "samples": ["c"]},
+                                "40px": {"count": 1, "states": ["d/home/default"], "samples": ["d"]}},
+                    "margin": {"16px": {"count": 2, "ua": 2, "states": ["d/home/default"], "samples": ["p"]}}},
+        "radius": {"border-radius": {"6px": {"count": 1, "states": ["d/home/default"], "samples": ["b"]}}},
+        "border": {"border-width": {"1px": {"count": 2, "states": ["d/home/default"], "samples": ["b"]},
+                                    "2px": {"count": 2, "states": ["d/home/default"], "samples": ["c"]}}},
+        "typography": {"font-family": {"Arial": {"count": 2, "ua": 2, "states": ["d/home/default"], "samples": ["button"]},
+                                       "Helvetica": {"count": 1, "states": ["d/home/default"], "samples": ["x"]}},
+                       "font-weight": {"700": {"count": 1, "states": ["d/home/default"], "samples": ["h1"]}}},
         "elevation": {"box-shadow": {"rgba(0, 0, 0, 0.2) 0px 4px 12px 0px": {"count": 1, "states": ["d/home/default"], "samples": ["m"]}}},
     },
-    "pairs": {"rgb(153, 153, 153) | rgb(255, 255, 255)": {"count": 2, "states": ["d/home/default"], "samples": ["p"], "fontSizes": ["13px"]},
-              "rgb(26, 26, 26) | rgb(255, 255, 255)": {"count": 5, "states": ["d/home/default"], "samples": ["h1"], "fontSizes": ["32px"], "bold": True}},
+    "pairs": {"rgb(153, 153, 153) | rgb(255, 255, 255)": {"count": 2, "states": ["d/home/default"], "samples": ["p"], "texts": [{"fontSize": "13px", "fontWeight": 400}]},
+              "rgb(26, 26, 26) | rgb(255, 255, 255)": {"count": 5, "states": ["d/home/default"], "samples": ["h1"], "texts": [{"fontSize": "32px", "fontWeight": 700}]},
+              "rgb(26, 26, 26) | rgb(250, 250, 250)": {"count": 1, "states": ["d/home/default"], "samples": ["h2"], "texts": [{"fontSize": "32px", "fontWeight": 700}, {"fontSize": "14px", "fontWeight": 400}]}},
 }
 
 
@@ -86,15 +93,30 @@ class MapInventory(unittest.TestCase):
         self.assertEqual(self.rows[("background-color", "rgb(52, 103, 254)")]["status"], "mapped")
 
     def test_spacing_statuses(self):
-        self.assertEqual(self.rows[("padding-left", "16px")]["status"], "mapped")
-        self.assertEqual(self.rows[("padding-left", "15px")]["status"], "near")
-        self.assertEqual(self.rows[("padding-left", "40px")]["status"], "unmapped")
+        self.assertEqual(self.rows[("padding", "16px")]["status"], "mapped")
+        self.assertEqual(self.rows[("padding", "15px")]["status"], "near")
+        self.assertEqual(self.rows[("padding", "40px")]["status"], "unmapped")
 
     def test_coverage_is_instance_weighted(self):
+        # browser-default margins are excluded from the weight
         self.assertEqual(self.m["coverage"]["spacing"]["share"], round(4 / 6, 4))
+        self.assertEqual(self.m["coverage"]["spacing"]["browserDefault"], 2)
+        self.assertEqual(self.rows[("margin", "16px")]["status"], "browser-default")
 
     def test_no_scale_reported(self):
         self.assertFalse(self.m["coverage"]["shadow"]["targetHasScale"])
+        self.assertIsNone(self.m["coverage"]["shadow"]["share"])
+
+    def test_font_weight_exact(self):
+        self.assertEqual(self.rows[("font-weight", "700")]["status"], "unmapped")
+
+    def test_font_family(self):
+        self.assertEqual(self.rows[("font-family", "Arial")]["status"], "browser-default")
+        self.assertEqual(self.rows[("font-family", "Helvetica")]["status"], "unmapped")
+
+    def test_residuals_keep_distinct_widths(self):
+        # no border-width scale in target -> not residuals; but 1px and 2px are not merged anywhere
+        self.assertFalse([g for g in self.m["residuals"] if g["category"] == "border-width"])
 
     def test_residual_for_offscale_color(self):
         self.assertIn("rgb(10, 200, 10)", [g["representative"] for g in self.m["residuals"]])
@@ -103,9 +125,29 @@ class MapInventory(unittest.TestCase):
         p = {x["pair"]: x for x in self.m["pairs"]}
         self.assertEqual(p["rgb(153, 153, 153) | rgb(255, 255, 255)"]["status"], "fail")
         self.assertEqual(p["rgb(26, 26, 26) | rgb(255, 255, 255)"]["required"], 3.0)
+        self.assertEqual(p["rgb(26, 26, 26) | rgb(250, 250, 250)"]["required"], 4.5)
         tp = {(x["fg"], x["bg"]): x["status"] for x in self.m["targetPairs"]}
         self.assertEqual(tp[("text-muted", "bg-default")], "pass")
         self.assertEqual(tp[("text-primary", "missing")], "missing-token")
+
+
+class Shadows(unittest.TestCase):
+    def test_shadow_parse_and_match(self):
+        from map import nearest
+        tok = [("elev-1", "0 4px 12px rgba(0,0,0,.2)"), ("elev-2", "0 8px 24px rgba(0,0,0,.2)")]
+        self.assertEqual(nearest("shadow", "rgba(0, 0, 0, 0.2) 0px 4px 12px 0px", tok)[:1], ("elev-1",))
+        self.assertEqual(nearest("shadow", "rgba(0, 0, 0, 0.2) 0px 4px 13px 0px", tok)[3], "near")
+
+
+class Check(unittest.TestCase):
+    def test_sub_schemas(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "routes.json")
+            with open(p, "w") as f:
+                json.dump({"meta": {"schema": "ds-inventory-routes/1", "commit": "x"},
+                           "routes": [{"name": "home", "path": "/", "foundIn": ["nav"]}]}, f)
+            r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "map.py"), "check", p], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
 
 
 class MapManifest(unittest.TestCase):

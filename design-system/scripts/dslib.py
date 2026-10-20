@@ -195,3 +195,76 @@ def family(v):
 
 def norm(v):
     return re.sub(r"\s+", " ", str(v).strip().lower())
+
+
+def oklch_to_srgb(L, C, H_deg, alpha=1.0):
+    """OKLCH -> (r, g, b, a) in 0..1, clipped to sRGB. For building ramps."""
+    h = math.radians(H_deg)
+    return (*_oklab_to_srgb(L, C * math.cos(h), C * math.sin(h)), alpha)
+
+
+def to_oklch(c):
+    """Parsed color -> (L, C, H_deg), ignoring alpha."""
+    L, a, b = to_oklab(c)
+    return (L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360)
+
+
+def font_stack(v):
+    return [f.strip().strip("'\"").lower() for f in str(v).split(",") if f.strip()]
+
+
+def _split_top(s, sep=","):
+    out, depth, cur = [], 0, ""
+    for ch in s:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch == sep and depth == 0:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return [x.strip() for x in out if x.strip()]
+
+
+def parse_shadow(s):
+    """CSS box-shadow -> list of layers {inset, x, y, blur, spread, color}, or None."""
+    s = str(s).strip()
+    if s.lower() in ("none", ""):
+        return []
+    layers = []
+    for layer in _split_top(s):
+        color, lengths, inset = None, [], False
+        for tok in re.findall(r"[a-z-]+\([^)]*\)|#[0-9a-fA-F]+|[^\s]+", layer):
+            if tok.lower() == "inset":
+                inset = True
+                continue
+            p = px(tok)
+            if p is not None:
+                lengths.append(p)
+                continue
+            c = parse_color(tok)
+            if c is None:
+                return None
+            color = c
+        if len(lengths) < 2:
+            return None
+        lengths += [0.0] * (4 - len(lengths))
+        layers.append({"inset": inset, "x": lengths[0], "y": lengths[1], "blur": lengths[2],
+                       "spread": lengths[3], "color": color or (0.0, 0.0, 0.0, 1.0)})
+    return layers
+
+
+def shadow_distance(a, b):
+    """(max px difference, max ΔE) between two parsed shadows; (inf, inf) if not comparable."""
+    if a is None or b is None or len(a) != len(b):
+        return math.inf, math.inf
+    dpx, de = 0.0, 0.0
+    for la, lb in zip(a, b):
+        if la["inset"] != lb["inset"]:
+            return math.inf, math.inf
+        dpx = max(dpx, *(abs(la[k] - lb[k]) for k in ("x", "y", "blur", "spread")))
+        de = max(de, delta_e(la["color"], lb["color"]))
+    return dpx, de

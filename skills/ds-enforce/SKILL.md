@@ -20,7 +20,7 @@ Read how the repo builds, styles, lints and runs CI (package manager, framework,
 
 The parts, as the repo needs them:
 
-- **Tokens into code.** For a derived manifest: a token build (Style Dictionary v4 or Terrazzo, reading DTCG generated from the manifest) to the outputs the stack uses (CSS custom properties, a Tailwind theme, platform files). For a third-party manifest: install the system's packages at the manifest's version and create the theme extension for the residuals the user chose to keep, in the system's own theming mechanism.
+- **Tokens into code.** For a derived manifest: a token build (Style Dictionary v4 or Terrazzo, reading `manifests/derived.tokens.json`) to the outputs the stack uses (CSS custom properties, a Tailwind theme, platform files). For a third-party manifest: install the system's packages at the manifest's version and create the theme extension for the residuals the user chose to keep, in the system's own theming mechanism.
 - **Rules for coding agents**, where agents in this repo already read instructions: which token or component to use for which situation, what is forbidden, one correct and one incorrect example each, and the commands that check compliance. Keep it short enough that an agent will apply it; link the full manifest instead of copying it.
 - **Lint.** Fail on raw style values (stylelint-declaration-strict-value or the stack's equivalent; an ESLint rule for styles in JS) and on imports of components the system replaces. Allow-list the token files. Let existing violations through with a baseline file or per-file allow-list, and report the baseline count.
 - **Accessibility.** axe-core through the test runner the repo already has (`@axe-core/playwright` for Playwright suites).

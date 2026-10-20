@@ -2,93 +2,248 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ds-inventory/1",
   "title": "Inventory: what a product renders and contains",
-  "description": "inventory.json is written by crawl.template.js. source.json and components.json sit next to it and follow $defs.source and $defs.components.",
+  "description": "inventory.json is written by crawl.template.js. routes.json, source.json and components.json sit next to it and follow $defs.routes, $defs.source and $defs.components.",
   "type": "object",
-  "required": ["meta", "states", "errors", "values", "pairs", "summary"],
+  "required": [
+    "meta",
+    "states",
+    "errors",
+    "values",
+    "pairs",
+    "summary"
+  ],
   "properties": {
     "meta": {
       "type": "object",
-      "required": ["schema", "generatedAt", "baseUrl", "commit"],
+      "required": [
+        "schema",
+        "generatedAt",
+        "baseUrl",
+        "commit"
+      ],
       "properties": {
-        "schema": { "const": "ds-inventory/1" },
-        "generatedAt": { "type": "string", "format": "date-time" },
-        "baseUrl": { "type": "string" },
-        "commit": { "type": "string", "description": "Product repo HEAD when crawled." },
-        "viewports": { "type": "array" }
+        "schema": {
+          "const": "ds-inventory/1"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "baseUrl": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string",
+          "description": "Product repo HEAD when crawled. If it is not a commit of the repo (a fixture, a rewritten history), staleness cannot be computed and consumers say so."
+        },
+        "viewports": {
+          "type": "array"
+        },
+        "theme": {
+          "type": "string",
+          "description": "Label of the theme this crawl covers (one inventory per theme)."
+        },
+        "colorScheme": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "states": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "url", "elements"],
+        "required": [
+          "id",
+          "url",
+          "elements"
+        ],
         "properties": {
-          "id": { "type": "string", "description": "viewport/route/state" },
-          "url": { "type": "string" },
-          "status": { "type": ["integer", "null"] },
-          "elements": { "type": "integer" },
-          "screenshot": { "type": ["string", "null"] }
+          "id": {
+            "type": "string",
+            "description": "viewport/route/state"
+          },
+          "url": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "elements": {
+            "type": "integer"
+          },
+          "screenshot": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Relative to the folder of inventory.json."
+          }
         }
       }
     },
     "errors": {
       "type": "array",
-      "items": { "type": "object", "required": ["id", "error"] }
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "error"
+        ]
+      }
     },
     "values": {
-      "description": "group -> CSS property -> computed value -> occurrence",
+      "description": "group -> logical property (color, background-color, border-color, margin, padding, gap, border-radius, border-width, font-*, line-height, ...) -> computed value -> occurrence. Each element counts once per distinct value of a logical property.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/occurrence" }
+          "additionalProperties": {
+            "$ref": "#/$defs/occurrence"
+          }
         }
       }
     },
     "pairs": {
-      "description": "'fg | bg' -> occurrence plus fontSizes and bold",
+      "description": "'fg | bg' -> occurrence with the text sizes and weights drawn in that pair",
       "type": "object",
       "additionalProperties": {
-        "allOf": [{ "$ref": "#/$defs/occurrence" }],
+        "allOf": [
+          {
+            "$ref": "#/$defs/occurrence"
+          }
+        ],
+        "required": [
+          "texts"
+        ],
         "properties": {
-          "fontSizes": { "type": "array", "items": { "type": "string" } },
-          "bold": { "type": "boolean" }
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "fontSize",
+                "fontWeight"
+              ],
+              "properties": {
+                "fontSize": {
+                  "type": "string"
+                },
+                "fontWeight": {
+                  "type": "number"
+                }
+              }
+            }
+          }
         }
       }
     },
-    "summary": { "type": "object", "additionalProperties": { "type": "integer" } }
+    "summary": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer"
+      }
+    }
   },
   "$defs": {
     "occurrence": {
       "type": "object",
-      "required": ["count", "states", "samples"],
+      "required": [
+        "count",
+        "states",
+        "samples"
+      ],
       "properties": {
-        "count": { "type": "integer", "minimum": 1 },
-        "states": { "type": "array", "items": { "type": "string" } },
-        "samples": { "type": "array", "items": { "type": "string" } }
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ua": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Instances equal to the browser default for that tag: rendered but not authored."
+        }
       }
     },
     "source": {
       "description": "source.json: hardcoded style values in the product source.",
       "type": "object",
-      "required": ["meta", "files", "total"],
+      "required": [
+        "meta",
+        "files",
+        "total"
+      ],
       "properties": {
         "meta": {
           "type": "object",
-          "required": ["schema", "commit", "generatedAt"],
-          "properties": { "schema": { "const": "ds-inventory-source/1" } }
+          "required": [
+            "schema",
+            "commit",
+            "generatedAt"
+          ],
+          "properties": {
+            "schema": {
+              "const": "ds-inventory-source/1"
+            },
+            "globs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "What was scanned and excluded."
+            }
+          }
         },
-        "total": { "type": "integer" },
+        "total": {
+          "type": "integer"
+        },
         "files": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["path", "count"],
+            "required": [
+              "path",
+              "count"
+            ],
             "properties": {
-              "path": { "type": "string" },
-              "count": { "type": "integer" },
-              "kinds": { "type": "object", "additionalProperties": { "type": "integer" }, "description": "e.g. hex, rgb, px, inline-style" }
+              "path": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "kinds": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "description": "e.g. hex, rgb, px, inline-style"
+              },
+              "values": {
+                "type": "object",
+                "description": "value -> count, for the values worth naming (colors, sizes)",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              }
             }
           }
         }
@@ -97,29 +252,147 @@
     "components": {
       "description": "components.json: component usage in the product source.",
       "type": "object",
-      "required": ["meta", "components"],
+      "required": [
+        "meta",
+        "components"
+      ],
       "properties": {
         "meta": {
           "type": "object",
-          "required": ["schema", "commit", "tool"],
+          "required": [
+            "schema",
+            "commit",
+            "tool"
+          ],
           "properties": {
-            "schema": { "const": "ds-inventory-components/1" },
-            "tool": { "type": "string", "description": "react-scanner, grep (approximate), ..." }
+            "schema": {
+              "const": "ds-inventory-components/1"
+            },
+            "tool": {
+              "type": "string",
+              "description": "react-scanner, grep (approximate), ..."
+            },
+            "notes": {
+              "type": "string"
+            }
           }
         },
         "components": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name", "instances"],
+            "required": [
+              "name",
+              "instances"
+            ],
             "properties": {
-              "name": { "type": "string" },
-              "importedFrom": { "type": "string" },
-              "instances": { "type": "integer" },
+              "name": {
+                "type": "string"
+              },
+              "importedFrom": {
+                "type": "string"
+              },
+              "instances": {
+                "type": "integer"
+              },
               "props": {
                 "type": "object",
                 "description": "prop -> value -> count",
-                "additionalProperties": { "type": "object", "additionalProperties": { "type": "integer" } }
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "routes": {
+      "description": "routes.json: what was crawled and why.",
+      "type": "object",
+      "required": [
+        "meta",
+        "routes"
+      ],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": [
+            "schema",
+            "commit"
+          ],
+          "properties": {
+            "schema": {
+              "const": "ds-inventory-routes/1"
+            },
+            "commit": {
+              "type": "string"
+            }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "path",
+              "foundIn"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "foundIn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "router source file, sitemap, navigation"
+              },
+              "states": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "notApplicable": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "State kinds checked and absent on this route."
+              },
+              "skipped": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
               }
             }
           }

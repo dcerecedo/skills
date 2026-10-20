@@ -5,12 +5,12 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE="$HERE/../crawl.template.js"
-WORK="$(mktemp -d)"; PORT="${PORT:-8765}"
+WORK="$(mktemp -d)"; PORT="${PORT:-8765}"; mkdir -p "$WORK/screenshots"
 trap 'kill $SERVER 2>/dev/null || true; playwright-cli -s=dds-test close >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 (cd "$HERE/fixture" && python3 -m http.server "$PORT" >/dev/null 2>&1) & SERVER=$!
 sleep 1
 ROUTES="    { name: 'home', path: '/', states: [ { name: 'default' }, { name: 'modal-open', steps: async (page) => { await page.click('#open'); } } ] },\n    { name: 'missing', path: '/nope-404' },"
-sed -e "s|__BASE_URL__|http://localhost:$PORT|" -e "s|__OUT_DIR__|$WORK|" -e "s|__COMMIT__|test|" \
+sed -e "s|__BASE_URL__|http://localhost:$PORT|" -e "s|__OUT_DIR__|$WORK/screenshots|" -e "s|__COMMIT__|test|" \
     -e "s|    // __ROUTES__|$ROUTES|" "$TEMPLATE" > "$WORK/crawl.js"
 CFG=(); [ -n "${PW_CONFIG:-}" ] && CFG=(--config="$PW_CONFIG")
 playwright-cli -s=dds-test "${CFG[@]}" open about:blank >/dev/null
@@ -26,7 +26,13 @@ assert {"rgb(51, 102, 255)", "rgb(52, 103, 254)"} <= set(bg), "near-duplicate bl
 shadow = d["values"]["elevation"]["box-shadow"]
 assert [v["states"] for v in shadow.values()] == [["desktop/home/modal-open"]], "modal state not reached"
 assert "rgb(153, 153, 153) | rgb(255, 255, 255)" in d["pairs"], "low-contrast pair missing"
-assert all(os.path.exists(s["screenshot"]) for s in d["states"]), "screenshot missing"
+assert all(os.path.exists(os.path.join(sys.argv[2], s["screenshot"])) for s in d["states"]), "screenshot missing"
+bc = d["values"]["color"]["border-color"]["rgb(0, 0, 0)"]
+assert bc["ua"] == bc["count"] > 0, ("default button border not flagged as browser default", bc)
+assert d["values"]["typography"]["font-family"]["Arial"]["ua"] > 0, "button font not flagged"
+assert d["values"]["typography"]["line-height"], "line-height missing"
+texts = d["pairs"]["rgb(26, 26, 26) | rgb(255, 255, 255)"]["texts"]
+assert {"fontSize": "32px", "fontWeight": 700} in texts, texts
 print("ok:", d["summary"]["colorPairs"], "color pairs,", len(ids), "states")
 PY
 MAP="$HERE/../scripts/map.py"
