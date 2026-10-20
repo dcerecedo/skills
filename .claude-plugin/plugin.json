@@ -1,7 +1,7 @@
 {
   "name": "dcerecedo-skills",
-  "version": "0.6.1",
-  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view. design-system (with ds-inventory, ds-resolve, ds-derive, ds-map, ds-enforce): design-system work grounded in what a product ships: crawl inventory, own or third-party manifests, measured mapping and comparison, enforcement.",
+  "version": "0.7.0",
+  "description": "dcerecedo's Claude Code skills. explain-flow: explains the control flow behind the current issue with linked UML diagrams and domain-language prose, in a pane and an offline browser view. design-system (with ds-inventory, ds-resolve, ds-derive, ds-map, ds-enforce): design-system work grounded in what a product ships: crawl inventory, own or third-party manifests, measured mapping and comparison, enforcement. coach: coaches a language, framework or engineering practice while you work real tickets, with execution-graded probes and evidence-only mastery tracking across repos.",
   "author": {
     "name": "Dani"
   },
@@ -13,7 +13,8 @@
     "./skills/ds-resolve",
     "./skills/ds-derive",
     "./skills/ds-map",
-    "./skills/ds-enforce"
+    "./skills/ds-enforce",
+    "./skills/coach"
   ],
   "types": "./explain-flow/types/index.d.ts",
   "userConfig": {

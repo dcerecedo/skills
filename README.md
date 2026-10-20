@@ -23,6 +23,7 @@ Answer `y` to add the marketplace, then pick the user scope to have it in every 
 | [`ds-derive`](skills/ds-derive/SKILL.md) | Derives the product's own system from its inventory: DTCG-style tokens, scales with residuals, contrast-safe ramps, component contracts, each token with its evidence. |
 | [`ds-map`](skills/ds-map/SKILL.md) | Fits an inventory or a manifest onto one or more target manifests: coverage in rendered instances, residuals, role mismatches, contrast, component gaps, side-by-side comparison. |
 | [`ds-enforce`](skills/ds-enforce/SKILL.md) | Sets the codebase up to stay on the chosen system: tokens or target theme, rules for coding agents, lint with a legacy baseline, axe, drift job, and a codegen eval. |
+| [`coach`](skills/coach/SKILL.md) | Coaches you in a language, framework or practice (testing, refactoring, design decisions) while you work real tickets: `setup`, `ticket`, `review`, `probe`, `log`. You write the spec, code and rationale; it challenges, reviews, runs execution-graded spaced-repetition probes and records mastery only from observed evidence, in a local git repo at `~/.claude/coach/`. Stack knowledge lives in `coach/profiles/` (python, django). |
 
 ## Configure
 
@@ -45,6 +46,9 @@ skills/<skill>/SKILL.md          one folder per skill
 hooks/hooks.json                 the plugin's hooks modules, one per skill that has a mod
 <skill>/                         a skill's mod code, assets and tests
 design-system/                   shared by the ds-* skills: CONVENTIONS.md, schemas/, scripts/, crawl template, tests
+coach/                           coach steps, STATE.md, profiles/<stack>.md, scripts/ (kg.py, logstats.py), tests
 ```
 
 The design-system skills need `@playwright/cli` (written against 0.1.22) for crawling. Tests: `design-system/tests/run.sh` (end to end, needs a browser; `PW_CONFIG=<playwright-cli.json>` to point at a custom Chromium) and `python3 -m unittest design-system/tests/test_map.py` (no browser).
+
+Coach tests: `python3 -m unittest coach/tests/test_coach_scripts.py`. Plugin skills are namespaced, so the command is `/dcerecedo-skills:coach <subcommand>`.
