@@ -24,6 +24,7 @@ Answer `y` to add the marketplace, then pick the user scope to have it in every 
 | [`ds-map`](skills/ds-map/SKILL.md) | Fits an inventory or a manifest onto one or more target manifests: coverage in rendered instances, residuals, role mismatches, contrast, component gaps, side-by-side comparison. |
 | [`ds-enforce`](skills/ds-enforce/SKILL.md) | Sets the codebase up to stay on the chosen system: tokens or target theme, rules for coding agents, lint with a legacy baseline, axe, drift job, and a codegen eval. |
 | [`coach`](skills/coach/SKILL.md) | Coaches you in a language, framework or practice (testing, refactoring, design decisions) while you work real tickets: `setup`, `ticket`, `review`, `probe`, `log`. You write the spec, code and rationale; it challenges, reviews, runs execution-graded spaced-repetition probes and records mastery only from observed evidence, in a local git repo at `~/.claude/coach/`. Stack knowledge lives in `coach/profiles/` (python, django). |
+| [`release-qa-gate`](skills/release-qa-gate/SKILL.md) | Pre-prod QA gate for an epic: spec defects, traceability and risk ranking from the raw diff and tickets; proves the tests with changed-line coverage, mutation testing, repeat runs and a migration round-trip on prod-shaped data; plans and runs a Playwright E2E pass against staging; proposes fault seeding for you to approve; ends in go/no-go with named residual risk. Stops for confirmation between phases. |
 
 ## Configure
 
